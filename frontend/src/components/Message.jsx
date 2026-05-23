@@ -1,10 +1,23 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { reactions as reactionsApi } from '../services/api'
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥']
 
 export default function Message({ message, currentUserId, onReactionUpdate }) {
   const [showPicker, setShowPicker] = useState(false)
+  const pickerRef = useRef(null)
+
+  // Cierra el picker al hacer click fuera
+  useEffect(() => {
+    if (!showPicker) return
+    const handler = (e) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target)) {
+        setShowPicker(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showPicker])
 
   const grouped = (message.reactions || []).reduce((acc, r) => {
     if (!acc[r.emoji]) acc[r.emoji] = { count: 0, mine: false }
@@ -23,8 +36,7 @@ export default function Message({ message, currentUserId, onReactionUpdate }) {
   const time = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
   return (
-    <div className={`message ${isOwn ? 'own' : ''}`}
-      onMouseLeave={() => setShowPicker(false)}>
+    <div className={`message ${isOwn ? 'own' : ''}`}>
       {!isOwn && <span className="message-author">{message.username}</span>}
 
       <div className="message-bubble-wrap">
@@ -43,15 +55,21 @@ export default function Message({ message, currentUserId, onReactionUpdate }) {
           <span className="message-time">{time}</span>
         </div>
 
-        <button className="reaction-trigger" onClick={() => setShowPicker(p => !p)}>😊</button>
+        <div className="reaction-wrap" ref={pickerRef}>
+          <button
+            className="reaction-trigger"
+            onClick={() => setShowPicker(p => !p)}
+            title="Reaccionar"
+          >😊</button>
 
-        {showPicker && (
-          <div className="emoji-picker">
-            {QUICK_EMOJIS.map(e => (
-              <button key={e} onClick={() => handleReaction(e)}>{e}</button>
-            ))}
-          </div>
-        )}
+          {showPicker && (
+            <div className="emoji-picker">
+              {QUICK_EMOJIS.map(e => (
+                <button key={e} onMouseDown={() => handleReaction(e)}>{e}</button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {Object.keys(grouped).length > 0 && (

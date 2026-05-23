@@ -8,11 +8,13 @@ type Channel struct {
 	Description string    `json:"description"`
 	CreatedBy   int       `json:"created_by"`
 	CreatedAt   time.Time `json:"created_at"`
+	IsPrivate   bool      `json:"is_private"`
 }
 
 type CreateChannelRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	IsPrivate   bool   `json:"is_private"`
 }
 
 type DMConversation struct {

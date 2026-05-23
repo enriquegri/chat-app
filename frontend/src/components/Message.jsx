@@ -10,17 +10,47 @@ const EMOJI_CATEGORIES = [
   { label: '🎉 Varios', emojis: ['🎉','🎊','🎈','🎁','🎀','🏆','🥇','🥈','🥉','🏅','🎯','🎲','🎮','🕹️','🃏','🎭','🎨','🎬','🎤','🎵','🎶','🎸','🎺','🥁','🚀','⭐','🌟','✨','💫','🌈','🔥','💥','❄️','⚡','🌊','💯','✅','❌','💡','🔔','📢','🗣️'] },
 ]
 
-// Parsea texto y resalta @menciones
+// Parsea markdown básico + @menciones
 function renderText(text, currentUsername) {
   if (!text) return null
-  const parts = text.split(/(@\w+)/g)
-  return parts.map((part, i) => {
-    if (part.startsWith('@')) {
-      const mentioned = part.slice(1)
-      const isMe = mentioned.toLowerCase() === currentUsername?.toLowerCase()
-      return <span key={i} className={`mention${isMe ? ' mention-me' : ''}`}>{part}</span>
+
+  // Bloques de código (```...```) — procesamos primero para no tocar su interior
+  const codeBlockRx = /```([\s\S]*?)```/g
+  const mentionRx = /(@\w+)/g
+  const inlineRx = /(\*\*(.+?)\*\*|_(.+?)_|`([^`]+)`)/g
+
+  // Dividimos por bloques de código
+  const segments = []
+  let last = 0
+  let m
+  while ((m = codeBlockRx.exec(text)) !== null) {
+    if (m.index > last) segments.push({ type: 'text', val: text.slice(last, m.index) })
+    segments.push({ type: 'code-block', val: m[1] })
+    last = m.index + m[0].length
+  }
+  if (last < text.length) segments.push({ type: 'text', val: text.slice(last) })
+
+  let key = 0
+  return segments.map(seg => {
+    if (seg.type === 'code-block') return <pre key={key++} className="msg-code-block"><code>{seg.val}</code></pre>
+
+    // Inline: bold, italic, code, mentions
+    const inline = []
+    let ilast = 0
+    const combined = new RegExp(`${mentionRx.source}|${inlineRx.source}`, 'g')
+    let im
+    while ((im = combined.exec(seg.val)) !== null) {
+      if (im.index > ilast) inline.push(seg.val.slice(ilast, im.index))
+      if (im[1]) { // @mention
+        const isMe = im[1].slice(1).toLowerCase() === currentUsername?.toLowerCase()
+        inline.push(<span key={key++} className={`mention${isMe ? ' mention-me' : ''}`}>{im[1]}</span>)
+      } else if (im[2]) inline.push(<strong key={key++}>{im[3]}</strong>)   // **bold**
+      else if (im[4]) inline.push(<em key={key++}>{im[5] || im[4].slice(1,-1)}</em>) // _italic_
+      else if (im[6]) inline.push(<code key={key++} className="msg-code">{im[7] || im[6].slice(1,-1)}</code>) // `code`
+      ilast = im.index + im[0].length
     }
-    return part
+    if (ilast < seg.val.length) inline.push(seg.val.slice(ilast))
+    return <span key={key++}>{inline}</span>
   })
 }
 

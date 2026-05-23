@@ -44,6 +44,7 @@ func (h *Hub) Run() {
 			h.clients[client] = true
 			h.mu.Unlock()
 			log.Printf("Client %s connected (channel %d)", client.Username, client.ChannelID)
+			h.sendOnlineUpdate(client.ChannelID)
 
 		case client := <-h.unregister:
 			h.mu.Lock()
@@ -53,6 +54,7 @@ func (h *Hub) Run() {
 			}
 			h.mu.Unlock()
 			log.Printf("Client %s disconnected", client.Username)
+			h.sendOnlineUpdate(client.ChannelID)
 
 		case message := <-h.broadcast:
 			h.mu.RLock()
@@ -95,6 +97,33 @@ func (h *Hub) Unregister(client *Client) {
 
 func (h *Hub) Broadcast(msg []byte) {
 	h.broadcast <- msg
+}
+
+// sendOnlineUpdate envía la lista de usuarios online en un canal a todos sus miembros.
+// Se llama desde Run(), por lo que se puede leer h.clients directamente (mismo goroutine).
+func (h *Hub) sendOnlineUpdate(channelID int) {
+	h.mu.RLock()
+	var users []string
+	for client := range h.clients {
+		if client.ChannelID == channelID {
+			users = append(users, client.Username)
+		}
+	}
+	data, _ := json.Marshal(map[string]interface{}{
+		"type":       "online_update",
+		"channel_id": channelID,
+		"count":      len(users),
+		"users":      users,
+	})
+	for client := range h.clients {
+		if client.ChannelID == channelID {
+			select {
+			case client.Send <- data:
+			default:
+			}
+		}
+	}
+	h.mu.RUnlock()
 }
 
 func (h *Hub) OnlineUsers(channelID int) []string {

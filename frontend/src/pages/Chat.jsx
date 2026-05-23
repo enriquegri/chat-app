@@ -27,6 +27,8 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const [showScrollBtn, setShowScrollBtn] = useState(false)
   const [mentionQuery, setMentionQuery] = useState(null)
   const [mentionIndex, setMentionIndex] = useState(0)
+  const [onlineCount, setOnlineCount] = useState(0)
+  const [newChannelPrivate, setNewChannelPrivate] = useState(false)
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
   const composerInputRef = useRef(null)
@@ -99,9 +101,13 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     setMessages(prev => prev.filter(m => m.id !== messageId))
   }, [])
 
+  const handleOnlineUpdate = useCallback((count) => {
+    setOnlineCount(count)
+  }, [])
+
   const { send, sendTyping } = useWebSocket(
     activeChannel?.id, handleNewMessage, handleTyping,
-    loadReactions, handleMessageEdited, handleMessageDeleted
+    loadReactions, handleMessageEdited, handleMessageDeleted, handleOnlineUpdate
   )
 
   // Scroll to bottom button
@@ -130,6 +136,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     setMessages([])
     setTypingUsers([])
     setUnread(0)
+    setOnlineCount(0)
     channelsApi.messages(activeChannel.id).then(({ data }) => {
       setMessages(data.map(m => ({ ...m, reactions: [] })))
       data.forEach(m => loadReactions(m.id))
@@ -259,10 +266,11 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const createChannel = async (e) => {
     e.preventDefault()
     if (!newChannel.trim()) return
-    const { data } = await channelsApi.create({ name: newChannel.trim() })
+    const { data } = await channelsApi.create({ name: newChannel.trim(), is_private: newChannelPrivate })
     setChannelList(prev => [...prev, data])
     setActiveChannel(data)
     setNewChannel('')
+    setNewChannelPrivate(false)
     setShowNewChannel(false)
   }
 
@@ -316,6 +324,14 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
                 onChange={e => setNewChannel(e.target.value)}
                 autoFocus
               />
+              <label className="private-toggle">
+                <input
+                  type="checkbox"
+                  checked={newChannelPrivate}
+                  onChange={e => setNewChannelPrivate(e.target.checked)}
+                />
+                Privado
+              </label>
               <button type="submit">Create</button>
             </form>
           )}
@@ -326,7 +342,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
                 className={`channel-item ${activeChannel?.id === ch.id && !activeDMUser ? 'active' : ''}`}
                 onClick={() => selectChannel(ch)}
               >
-                # {ch.name}
+                {ch.is_private ? '🔒' : '#'} {ch.name}
               </li>
             ))}
           </ul>
@@ -396,8 +412,11 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
                   </h3>
                 ) : (
                   <>
-                    <h3># {activeChannel.name}</h3>
-                    {activeChannel.description && <p>{activeChannel.description}</p>}
+                    <h3>{activeChannel.is_private ? '🔒' : '#'} {activeChannel.name}</h3>
+                    <div className="channel-header-meta">
+                      {activeChannel.description && <span>{activeChannel.description}</span>}
+                      {onlineCount > 0 && <span className="online-badge">● {onlineCount} online</span>}
+                    </div>
                   </>
                 )}
               </div>

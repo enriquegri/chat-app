@@ -478,6 +478,19 @@ body {
 
 .msg-row.compact .msg-meta { display: none; }
 
+/* ── Markdown inline styles ──────────────────────────────────── */
+.msg-code { background: var(--bg-base); border: 1px solid var(--border-subtle); border-radius: 3px; color: var(--color-danger); font-family: monospace; font-size: .8em; padding: .1rem .3rem; }
+.msg-code-block { background: var(--bg-base); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); color: var(--text-secondary); font-family: monospace; font-size: var(--text-xs); margin: .35rem 0; overflow-x: auto; padding: .6rem .85rem; white-space: pre; }
+
+/* ── Online users badge ──────────────────────────────────────── */
+.channel-header-meta { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem; }
+.channel-header-meta span { color: var(--text-muted); font-size: var(--text-xs); }
+.online-badge { color: var(--color-success) !important; font-weight: 600; }
+
+/* ── Private channel checkbox in create form ─────────────────── */
+.private-toggle { align-items: center; color: var(--text-secondary); cursor: pointer; display: flex; font-size: var(--text-xs); gap: .35rem; }
+.private-toggle input { accent-color: var(--accent); cursor: pointer; }
+
 /* ── Message images & files ───────────────────────────────────── */
 .message-img { border-radius: var(--radius-md); max-width: 340px; max-height: 280px; object-fit: cover; display: block; margin-top: .35rem; }
 .message-file { color: var(--accent); font-size: var(--text-sm); text-decoration: none; display: inline-flex; align-items: center; gap: .25rem; margin-top: .2rem; }

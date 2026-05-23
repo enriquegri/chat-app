@@ -20,7 +20,7 @@ func NewChannelService(db *sql.DB, crypto *Crypto) *ChannelService {
 
 func (s *ChannelService) GetUserChannels(userID int) ([]models.Channel, error) {
 	rows, err := s.db.Query(`
-		SELECT c.id, c.name, c.description, c.created_by, c.created_at
+		SELECT c.id, c.name, c.description, c.created_by, c.created_at, c.is_private
 		FROM channels c
 		JOIN channel_members cm ON c.id = cm.channel_id
 		WHERE cm.user_id = ? AND c.is_dm = FALSE
@@ -33,7 +33,7 @@ func (s *ChannelService) GetUserChannels(userID int) ([]models.Channel, error) {
 	var channels []models.Channel
 	for rows.Next() {
 		var ch models.Channel
-		if err := rows.Scan(&ch.ID, &ch.Name, &ch.Description, &ch.CreatedBy, &ch.CreatedAt); err != nil {
+		if err := rows.Scan(&ch.ID, &ch.Name, &ch.Description, &ch.CreatedBy, &ch.CreatedAt, &ch.IsPrivate); err != nil {
 			return nil, err
 		}
 		channels = append(channels, ch)
@@ -47,8 +47,8 @@ func (s *ChannelService) Create(req models.CreateChannelRequest, userID int) (*m
 	}
 
 	result, err := s.db.Exec(
-		"INSERT INTO channels (name, description, created_by) VALUES (?, ?, ?)",
-		req.Name, req.Description, userID,
+		"INSERT INTO channels (name, description, created_by, is_private) VALUES (?, ?, ?, ?)",
+		req.Name, req.Description, userID, req.IsPrivate,
 	)
 	if err != nil {
 		return nil, errors.New("channel name already exists or database error")
@@ -61,7 +61,7 @@ func (s *ChannelService) Create(req models.CreateChannelRequest, userID int) (*m
 
 	var ch models.Channel
 	s.db.QueryRow("SELECT id, name, description, created_by, created_at FROM channels WHERE id = ?", id).
-		Scan(&ch.ID, &ch.Name, &ch.Description, &ch.CreatedBy, &ch.CreatedAt)
+		Scan(&ch.ID, &ch.Name, &ch.Description, &ch.CreatedBy, &ch.CreatedAt, &ch.IsPrivate)
 
 	return &ch, nil
 }
@@ -74,7 +74,7 @@ func (s *ChannelService) GetOrCreateDM(user1ID, user2ID int) (*models.Channel, e
 			(dm_user1_id = ? AND dm_user2_id = ?) OR
 			(dm_user1_id = ? AND dm_user2_id = ?)
 		)`, user1ID, user2ID, user2ID, user1ID,
-	).Scan(&ch.ID, &ch.Name, &ch.Description, &ch.CreatedBy, &ch.CreatedAt)
+	).Scan(&ch.ID, &ch.Name, &ch.Description, &ch.CreatedBy, &ch.CreatedAt, &ch.IsPrivate)
 
 	if err == nil {
 		// ensure both users are members
@@ -101,7 +101,7 @@ func (s *ChannelService) GetOrCreateDM(user1ID, user2ID int) (*models.Channel, e
 		id, user1ID, id, user2ID)
 
 	s.db.QueryRow("SELECT id, name, description, created_by, created_at FROM channels WHERE id = ?", id).
-		Scan(&ch.ID, &ch.Name, &ch.Description, &ch.CreatedBy, &ch.CreatedAt)
+		Scan(&ch.ID, &ch.Name, &ch.Description, &ch.CreatedBy, &ch.CreatedAt, &ch.IsPrivate)
 	return &ch, nil
 }
 

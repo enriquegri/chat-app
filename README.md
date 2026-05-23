@@ -1,56 +1,89 @@
-# Chat App - Slack Alternative
+# ChatApp — Self-hosted Slack Alternative
 
-An open-source, self-hosted chat application built with Go (backend) + React (frontend).
+Open-source, real-time chat app built with **Go + WebSockets + React**. Deploy it on your own VPS under your own brand.
 
 ## Features
 
-- ✅ Real-time messaging with WebSockets
-- ✅ User authentication (JWT)
-- ✅ Multiple channels
-- ✅ Message persistence
-- ✅ Online status
-- 🔄 Coming: Reactions, File uploads, Admin dashboard
+- Real-time messaging via WebSockets
+- User authentication (JWT)
+- Multiple channels
+- Message history (MariaDB)
+- Online status per channel
+- Docker one-command deploy
+- Mobile-ready (Capacitor wrapper, coming soon)
 
 ## Tech Stack
 
-- **Backend**: Go 1.22 + gorilla/websocket
-- **Frontend**: React 19 + Vite
-- **Database**: MariaDB 10.5
-- **Deployment**: Docker + Docker Compose
+| Layer | Technology |
+|-------|-----------|
+| Backend | Go 1.22 + gorilla/websocket |
+| Frontend | React 19 + Vite |
+| Database | MariaDB 10.5 |
+| Reverse proxy | Nginx (built into frontend container) |
+| Deploy | Docker + Docker Compose |
 
-## Quick Start
+---
 
-### Prerequisites
-- Docker & Docker Compose
-- Git
-
-### Running Locally
+## Quick Start (Local)
 
 ```bash
-git clone https://github.com/yourusername/chat-app.git
+git clone https://github.com/YOUR_USERNAME/chat-app.git
 cd chat-app
-docker-compose up
+cp .env.example .env       # edit JWT_SECRET and passwords
+docker compose up --build
 ```
 
-Then open your browser:
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8080
+Open http://localhost — register an account and start chatting.
 
-### Development
+---
 
-#### Backend (Go)
+## Deploy to VPS
+
+### 1. Prepare the server
+
 ```bash
-cd backend
-go mod tidy
-go run main.go
+# On your VPS (Ubuntu/Debian)
+curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/chat-app/master/scripts/setup-vps.sh | bash
 ```
 
-#### Frontend (React)
+### 2. Clone and configure
+
 ```bash
-cd frontend
-npm install
-npm run dev
+git clone https://github.com/YOUR_USERNAME/chat-app.git /opt/chat-app
+cd /opt/chat-app
+cp .env.example .env
+nano .env   # Set strong JWT_SECRET and DB passwords
 ```
+
+### 3. Launch
+
+```bash
+docker compose up -d --build
+```
+
+App runs on **port 80**. Point your domain's DNS A record to the VPS IP and it's live.
+
+### Optional: HTTPS with Let's Encrypt
+
+```bash
+apt install certbot python3-certbot-nginx -y
+certbot --nginx -d yourdomain.com
+```
+
+---
+
+## Environment Variables (.env)
+
+```env
+APP_PORT=80
+DB_ROOT_PASSWORD=strongpassword
+DB_USER=chatapp
+DB_PASSWORD=strongpassword
+DB_NAME=chatapp
+JWT_SECRET=a-very-long-random-secret-string
+```
+
+---
 
 ## Project Structure
 
@@ -58,60 +91,78 @@ npm run dev
 chat-app/
 ├── backend/
 │   ├── main.go
-│   ├── config/
-│   ├── models/
-│   ├── handlers/
-│   ├── services/
+│   ├── config/          # Env vars
+│   ├── models/          # User, Channel, Message
+│   ├── handlers/        # HTTP + WebSocket handlers
+│   ├── services/        # Auth, Channel, Broadcast (Hub)
+│   ├── middleware/       # JWT auth middleware
 │   ├── db/
-│   ├── middleware/
+│   │   └── migrations/  # SQL schema
 │   └── Dockerfile
 ├── frontend/
 │   ├── src/
-│   ├── package.json
+│   │   ├── pages/       # Login, Register, Chat
+│   │   ├── components/  # Message
+│   │   ├── hooks/       # useAuth, useWebSocket
+│   │   └── services/    # API calls (axios)
+│   ├── nginx.conf       # SPA + proxy config
 │   └── Dockerfile
+├── scripts/
+│   └── setup-vps.sh     # One-shot VPS setup
 ├── docker-compose.yml
-└── README.md
+└── .env.example
 ```
 
-## API Documentation
+---
 
-### Auth Endpoints
-- `POST /auth/register` - Register new user
-- `POST /auth/login` - Login user
+## API Reference
 
-### Channel Endpoints
-- `GET /channels` - List user's channels
-- `POST /channels` - Create new channel
-- `GET /channels/:id` - Get channel details
+### Auth
+```
+POST /auth/register   { username, email, password }
+POST /auth/login      { email, password }
+```
+
+### Channels (requires Bearer token)
+```
+GET  /api/channels
+POST /api/channels         { name, description }
+GET  /api/channels/:id/messages
+POST /api/channels/:id/join
+```
 
 ### WebSocket
-- `WS /ws` - WebSocket connection for real-time messaging
+```
+WS /ws/:channelId?token=JWT_TOKEN
+
+Send:    { "type": "message", "content": "Hello!" }
+Receive: { "type": "message", "message": { id, username, content, created_at, ... } }
+```
+
+---
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+1. Fork the repo
+2. Create a feature branch: `git checkout -b feature/something`
+3. Commit your changes
+4. Open a Pull Request
 
-## License
-
-MIT License - see LICENSE file for details
+---
 
 ## Roadmap
 
-- [x] Project setup
-- [ ] Backend authentication
-- [ ] Backend channels
-- [ ] WebSocket implementation
-- [ ] Frontend UI
-- [ ] Docker deployment
-- [ ] Reactions & emoji
+- [x] Real-time messaging
+- [x] Auth + channels
+- [x] Docker deploy
+- [ ] Typing indicators
+- [ ] Emoji reactions
 - [ ] File uploads
 - [ ] Admin dashboard
-- [ ] Mobile app (Capacitor)
+- [ ] Mobile app (Capacitor → APK)
 
-## Support
+---
 
-For issues and questions, please open a GitHub issue.
+## License
+
+MIT

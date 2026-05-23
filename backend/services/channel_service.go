@@ -3,6 +3,7 @@ package services
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/yourusername/chat-app/models"
@@ -22,7 +23,7 @@ func (s *ChannelService) GetUserChannels(userID int) ([]models.Channel, error) {
 		SELECT c.id, c.name, c.description, c.created_by, c.created_at
 		FROM channels c
 		JOIN channel_members cm ON c.id = cm.channel_id
-		WHERE cm.user_id = ?
+		WHERE cm.user_id = ? AND c.is_dm = FALSE
 		ORDER BY c.name`, userID)
 	if err != nil {
 		return nil, err
@@ -63,6 +64,107 @@ func (s *ChannelService) Create(req models.CreateChannelRequest, userID int) (*m
 		Scan(&ch.ID, &ch.Name, &ch.Description, &ch.CreatedBy, &ch.CreatedAt)
 
 	return &ch, nil
+}
+
+func (s *ChannelService) GetOrCreateDM(user1ID, user2ID int) (*models.Channel, error) {
+	var ch models.Channel
+	err := s.db.QueryRow(`
+		SELECT id, name, description, created_by, created_at FROM channels
+		WHERE is_dm = TRUE AND (
+			(dm_user1_id = ? AND dm_user2_id = ?) OR
+			(dm_user1_id = ? AND dm_user2_id = ?)
+		)`, user1ID, user2ID, user2ID, user1ID,
+	).Scan(&ch.ID, &ch.Name, &ch.Description, &ch.CreatedBy, &ch.CreatedAt)
+
+	if err == nil {
+		// ensure both users are members
+		s.db.Exec("INSERT IGNORE INTO channel_members (channel_id, user_id) VALUES (?,?),(?,?)",
+			ch.ID, user1ID, ch.ID, user2ID)
+		return &ch, nil
+	}
+	if err != sql.ErrNoRows {
+		return nil, err
+	}
+
+	// create the DM channel
+	name := fmt.Sprintf("dm_%d_%d", min2(user1ID, user2ID), max2(user1ID, user2ID))
+	res, err := s.db.Exec(
+		`INSERT INTO channels (name, description, created_by, is_dm, dm_user1_id, dm_user2_id)
+		 VALUES (?, '', ?, TRUE, ?, ?)`,
+		name, user1ID, user1ID, user2ID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	id, _ := res.LastInsertId()
+	s.db.Exec("INSERT IGNORE INTO channel_members (channel_id, user_id) VALUES (?,?),(?,?)",
+		id, user1ID, id, user2ID)
+
+	s.db.QueryRow("SELECT id, name, description, created_by, created_at FROM channels WHERE id = ?", id).
+		Scan(&ch.ID, &ch.Name, &ch.Description, &ch.CreatedBy, &ch.CreatedAt)
+	return &ch, nil
+}
+
+func (s *ChannelService) GetDMConversations(userID int) ([]models.DMConversation, error) {
+	rows, err := s.db.Query(`
+		SELECT c.id,
+		       CASE WHEN c.dm_user1_id = ? THEN c.dm_user2_id ELSE c.dm_user1_id END AS other_id,
+		       u.username, u.avatar_color
+		FROM channels c
+		JOIN users u ON u.id = CASE WHEN c.dm_user1_id = ? THEN c.dm_user2_id ELSE c.dm_user1_id END
+		WHERE c.is_dm = TRUE AND (c.dm_user1_id = ? OR c.dm_user2_id = ?)
+		ORDER BY c.created_at DESC`,
+		userID, userID, userID, userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var convs []models.DMConversation
+	for rows.Next() {
+		var d models.DMConversation
+		if err := rows.Scan(&d.ChannelID, &d.UserID, &d.Username, &d.AvatarColor); err != nil {
+			return nil, err
+		}
+		convs = append(convs, d)
+	}
+	return convs, nil
+}
+
+func (s *ChannelService) ListUsers(excludeID int) ([]models.UserInfo, error) {
+	rows, err := s.db.Query(
+		"SELECT id, username, avatar_color FROM users WHERE username != 'system' AND id != ? ORDER BY username",
+		excludeID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []models.UserInfo
+	for rows.Next() {
+		var u models.UserInfo
+		if err := rows.Scan(&u.ID, &u.Username, &u.AvatarColor); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, nil
+}
+
+func min2(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func max2(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func (s *ChannelService) IsMember(channelID, userID int) (bool, error) {

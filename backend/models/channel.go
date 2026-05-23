@@ -14,3 +14,16 @@ type CreateChannelRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }
+
+type DMConversation struct {
+	ChannelID   int    `json:"channel_id"`
+	UserID      int    `json:"user_id"`
+	Username    string `json:"username"`
+	AvatarColor string `json:"avatar_color"`
+}
+
+type UserInfo struct {
+	ID          int    `json:"id"`
+	Username    string `json:"username"`
+	AvatarColor string `json:"avatar_color"`
+}

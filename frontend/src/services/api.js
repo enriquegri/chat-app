@@ -22,6 +22,15 @@ export const channels = {
   join: (id) => api.post(`/api/channels/${id}/join`),
 }
 
+export const dm = {
+  list: () => api.get('/api/dm'),
+  open: (userId) => api.post(`/api/dm/${userId}`),
+}
+
+export const users = {
+  list: () => api.get('/api/users'),
+}
+
 export const reactions = {
   toggle: (messageId, emoji) => api.post(`/api/messages/${messageId}/reactions/${emoji}`),
   list: (messageId) => api.get(`/api/messages/${messageId}/reactions`),

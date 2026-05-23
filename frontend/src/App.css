@@ -1045,3 +1045,41 @@ body {
     -webkit-overflow-scrolling: touch;
   }
 }
+
+/* ── Direct Messages ──────────────────────────────────────────── */
+.user-avatar-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  font-size: .65rem;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.channel-item .user-avatar-sm { margin-right: .4rem; }
+.chat-header-title h3 .user-avatar-sm { margin-right: .5rem; vertical-align: middle; }
+
+.user-picker {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  margin: .25rem .75rem .5rem;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.user-picker-item {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: .5rem;
+  font-size: var(--text-sm);
+  padding: .45rem .75rem;
+  transition: background .1s;
+}
+.user-picker-item:hover { background: var(--bg-hover); }
+}

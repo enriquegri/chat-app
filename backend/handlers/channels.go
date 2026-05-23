@@ -121,6 +121,49 @@ func (h *ChannelHandler) Join(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, map[string]string{"status": "joined"}, http.StatusOK)
 }
 
+func (h *ChannelHandler) DMOpen(w http.ResponseWriter, r *http.Request) {
+	targetID, err := strconv.Atoi(mux.Vars(r)["userId"])
+	if err != nil {
+		jsonError(w, "invalid user id", http.StatusBadRequest)
+		return
+	}
+	userID := getUserID(r)
+	if userID == targetID {
+		jsonError(w, "cannot DM yourself", http.StatusBadRequest)
+		return
+	}
+	ch, err := h.channelSvc.GetOrCreateDM(userID, targetID)
+	if err != nil {
+		jsonError(w, "error opening DM", http.StatusInternalServerError)
+		return
+	}
+	jsonResponse(w, ch, http.StatusOK)
+}
+
+func (h *ChannelHandler) DMList(w http.ResponseWriter, r *http.Request) {
+	convs, err := h.channelSvc.GetDMConversations(getUserID(r))
+	if err != nil {
+		jsonError(w, "error fetching DMs", http.StatusInternalServerError)
+		return
+	}
+	if convs == nil {
+		convs = []models.DMConversation{}
+	}
+	jsonResponse(w, convs, http.StatusOK)
+}
+
+func (h *ChannelHandler) UserList(w http.ResponseWriter, r *http.Request) {
+	users, err := h.channelSvc.ListUsers(getUserID(r))
+	if err != nil {
+		jsonError(w, "error fetching users", http.StatusInternalServerError)
+		return
+	}
+	if users == nil {
+		users = []models.UserInfo{}
+	}
+	jsonResponse(w, users, http.StatusOK)
+}
+
 func getUserID(r *http.Request) int {
 	raw := r.Context().Value(middleware.UserKey)
 	if raw == nil {

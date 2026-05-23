@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { channels as channelsApi, reactions as reactionsApi, uploads } from '../services/api'
+import { channels as channelsApi, reactions as reactionsApi, uploads, dm as dmApi, users as usersApi } from '../services/api'
 import { useWebSocket } from '../hooks/useWebSocket'
 import Message from '../components/Message'
 
@@ -8,6 +8,10 @@ const TYPING_TIMEOUT = 2000
 export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const [channelList, setChannelList] = useState([])
   const [activeChannel, setActiveChannel] = useState(null)
+  const [activeDMUser, setActiveDMUser] = useState(null)
+  const [dmList, setDmList] = useState([])
+  const [userList, setUserList] = useState([])
+  const [showUserPicker, setShowUserPicker] = useState(false)
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [newChannel, setNewChannel] = useState('')
@@ -80,6 +84,8 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
       setChannelList(data)
       if (data.length > 0) setActiveChannel(data[0])
     })
+    dmApi.list().then(({ data }) => setDmList(data))
+    usersApi.list().then(({ data }) => setUserList(data))
   }, [])
 
   useEffect(() => {
@@ -136,6 +142,27 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
       setUploading(false)
       e.target.value = ''
     }
+  }
+
+  const openDM = async (u) => {
+    setShowUserPicker(false)
+    const { data: ch } = await dmApi.open(u.id)
+    setActiveDMUser(u)
+    setActiveChannel(ch)
+    setDmList(prev => prev.find(d => d.channel_id === ch.id)
+      ? prev
+      : [{ channel_id: ch.id, user_id: u.id, username: u.username, avatar_color: u.avatar_color }, ...prev]
+    )
+  }
+
+  const selectChannel = (ch) => {
+    setActiveDMUser(null)
+    setActiveChannel(ch)
+  }
+
+  const selectDM = (conv) => {
+    setActiveDMUser({ id: conv.user_id, username: conv.username, avatar_color: conv.avatar_color })
+    setActiveChannel({ id: conv.channel_id, name: conv.username })
   }
 
   const createChannel = async (e) => {
@@ -205,10 +232,43 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
             {channelList.map(ch => (
               <li
                 key={ch.id}
-                className={`channel-item ${activeChannel?.id === ch.id ? 'active' : ''}`}
-                onClick={() => setActiveChannel(ch)}
+                className={`channel-item ${activeChannel?.id === ch.id && !activeDMUser ? 'active' : ''}`}
+                onClick={() => selectChannel(ch)}
               >
                 # {ch.name}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="channels-section">
+          <div className="channels-header">
+            <span>Direct Messages</span>
+            <button onClick={() => setShowUserPicker(v => !v)}>+</button>
+          </div>
+          {showUserPicker && (
+            <div className="user-picker">
+              {userList.map(u => (
+                <div key={u.id} className="user-picker-item" onClick={() => openDM(u)}>
+                  <span className="user-avatar-sm" style={{ background: u.avatar_color || '#5b5ef4' }}>
+                    {u.username[0].toUpperCase()}
+                  </span>
+                  {u.username}
+                </div>
+              ))}
+            </div>
+          )}
+          <ul className="channel-list">
+            {dmList.map(conv => (
+              <li
+                key={conv.channel_id}
+                className={`channel-item ${activeChannel?.id === conv.channel_id && activeDMUser ? 'active' : ''}`}
+                onClick={() => selectDM(conv)}
+              >
+                <span className="user-avatar-sm" style={{ background: conv.avatar_color || '#5b5ef4' }}>
+                  {conv.username[0].toUpperCase()}
+                </span>
+                {conv.username}
               </li>
             ))}
           </ul>
@@ -234,10 +294,21 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
         {activeChannel ? (
           <>
             <div className="chat-header">
-              <button className="mobile-back" onClick={() => setActiveChannel(null)}>←</button>
+              <button className="mobile-back" onClick={() => { setActiveChannel(null); setActiveDMUser(null) }}>←</button>
               <div className="chat-header-title">
-                <h3># {activeChannel.name}</h3>
-                {activeChannel.description && <p>{activeChannel.description}</p>}
+                {activeDMUser ? (
+                  <h3>
+                    <span className="user-avatar-sm" style={{ background: activeDMUser.avatar_color || '#5b5ef4' }}>
+                      {activeDMUser.username[0].toUpperCase()}
+                    </span>
+                    {activeDMUser.username}
+                  </h3>
+                ) : (
+                  <>
+                    <h3># {activeChannel.name}</h3>
+                    {activeChannel.description && <p>{activeChannel.description}</p>}
+                  </>
+                )}
               </div>
               <button
                 className="search-toggle"
@@ -312,7 +383,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
               <input
                 className="composer-input"
                 type="text"
-                placeholder={`Message #${activeChannel.name}`}
+                placeholder={activeDMUser ? `Message ${activeDMUser.username}` : `Message #${activeChannel.name}`}
                 value={input}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
@@ -337,7 +408,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
             </form>
           </>
         ) : (
-          <div className="no-channel">Select a channel to start chatting</div>
+          <div className="no-channel">Select a channel or contact to start chatting</div>
         )}
       </main>
     </div>

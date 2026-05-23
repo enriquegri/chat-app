@@ -23,8 +23,8 @@ func (s *AuthService) Register(req models.RegisterRequest) (*models.AuthResponse
 	if req.Username == "" || req.Email == "" || req.Password == "" {
 		return nil, errors.New("username, email and password are required")
 	}
-	if len(req.Password) < 6 {
-		return nil, errors.New("password must be at least 6 characters")
+	if len(req.Password) < 8 {
+		return nil, errors.New("password must be at least 8 characters")
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
@@ -137,8 +137,8 @@ func (s *AuthService) UpdateProfile(userID int, req models.UpdateProfileRequest)
 }
 
 func (s *AuthService) ChangePassword(userID int, req models.ChangePasswordRequest) error {
-	if len(req.NewPassword) < 6 {
-		return errors.New("password must be at least 6 characters")
+	if len(req.NewPassword) < 8 {
+		return errors.New("password must be at least 8 characters")
 	}
 	var hash string
 	err := s.db.QueryRow("SELECT password_hash FROM users WHERE id = ?", userID).Scan(&hash)

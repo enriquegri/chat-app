@@ -40,8 +40,16 @@ func main() {
 	authMiddleware := middleware.Auth(authSvc)
 	adminMiddleware := middleware.Admin
 
+	loginLimiter := middleware.NewRateLimiter(10) // 10 req/min por IP
+
 	r := mux.NewRouter()
 	r.Use(makeCORSMiddleware(cfg.AllowedOrigins))
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1 MB para endpoints normales
+			next.ServeHTTP(w, r)
+		})
+	})
 
 	// Handle CORS preflight for all routes
 	r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -58,7 +66,7 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]bool{"enabled": cfg.RegistrationEnabled})
 	}).Methods("GET")
 	r.HandleFunc("/auth/register", authHandler.Register).Methods("POST")
-	r.HandleFunc("/auth/login", authHandler.Login).Methods("POST")
+	r.Handle("/auth/login", loginLimiter.Limit(http.HandlerFunc(authHandler.Login))).Methods("POST")
 
 	// WebSocket (auth via query param)
 	r.HandleFunc("/ws/{channelId}", wsHandler.Handle)

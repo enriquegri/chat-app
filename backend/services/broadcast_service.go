@@ -127,6 +127,8 @@ func (c *Client) ReadPump(hub *Hub, channelSvc *ChannelService) {
 		c.Conn.Close()
 	}()
 
+	c.Conn.SetReadLimit(64 * 1024) // 64 KB por mensaje
+
 	for {
 		_, rawMsg, err := c.Conn.ReadMessage()
 		if err != nil {

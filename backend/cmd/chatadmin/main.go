@@ -83,6 +83,9 @@ func cmdCreateUser(db *sql.DB, args []string) {
 	if username == "" || email == "" || password == "" {
 		fatal("usage: create-user --username NAME --email EMAIL --password PASS [--admin]")
 	}
+	if len(password) < 8 {
+		fatal("password must be at least 8 characters")
+	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -124,6 +127,9 @@ func cmdResetPassword(db *sql.DB, args []string) {
 
 	if email == "" || password == "" {
 		fatal("usage: reset-password --email EMAIL --password NEWPASS")
+	}
+	if len(password) < 8 {
+		fatal("password must be at least 8 characters")
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)

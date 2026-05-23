@@ -59,6 +59,11 @@ func (h *ChannelHandler) Messages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if ok, _ := h.channelSvc.IsMember(channelID, getUserID(r)); !ok {
+		jsonError(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
 	messages, err := h.channelSvc.GetMessages(channelID, 50)
 	if err != nil {
 		jsonError(w, "error fetching messages", http.StatusInternalServerError)
@@ -74,6 +79,11 @@ func (h *ChannelHandler) Search(w http.ResponseWriter, r *http.Request) {
 	channelID, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		jsonError(w, "invalid channel id", http.StatusBadRequest)
+		return
+	}
+
+	if ok, _ := h.channelSvc.IsMember(channelID, getUserID(r)); !ok {
+		jsonError(w, "forbidden", http.StatusForbidden)
 		return
 	}
 

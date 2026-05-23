@@ -63,6 +63,15 @@ func (s *ChannelService) Create(req models.CreateChannelRequest, userID int) (*m
 	return &ch, nil
 }
 
+func (s *ChannelService) IsMember(channelID, userID int) (bool, error) {
+	var count int
+	err := s.db.QueryRow(
+		"SELECT COUNT(*) FROM channel_members WHERE channel_id = ? AND user_id = ?",
+		channelID, userID,
+	).Scan(&count)
+	return count > 0, err
+}
+
 func (s *ChannelService) JoinChannel(channelID, userID int) error {
 	_, err := s.db.Exec(
 		"INSERT IGNORE INTO channel_members (channel_id, user_id) VALUES (?, ?)",

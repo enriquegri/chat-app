@@ -60,6 +60,11 @@ func (h *WSHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	userID := int(mapClaims["user_id"].(float64))
 	username := mapClaims["username"].(string)
 
+	if ok, _ := h.channelSvc.IsMember(channelID, userID); !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
 	conn, err := h.upgrader().Upgrade(w, r, nil)
 	if err != nil {
 		return

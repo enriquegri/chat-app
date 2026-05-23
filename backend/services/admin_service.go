@@ -70,12 +70,51 @@ func (s *AdminService) SetRole(id int, role string) error {
 	return err
 }
 
+func (s *AdminService) GetChannelMembers(channelID int) ([]models.UserInfo, error) {
+	rows, err := s.db.Query(`
+		SELECT u.id, u.username, u.avatar_color
+		FROM users u
+		JOIN channel_members cm ON cm.user_id = u.id
+		WHERE cm.channel_id = ? AND u.username != 'system'
+		ORDER BY u.username`, channelID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var members []models.UserInfo
+	for rows.Next() {
+		var u models.UserInfo
+		if err := rows.Scan(&u.ID, &u.Username, &u.AvatarColor); err != nil {
+			return nil, err
+		}
+		members = append(members, u)
+	}
+	return members, nil
+}
+
+func (s *AdminService) AddChannelMember(channelID, userID int) error {
+	_, err := s.db.Exec(
+		"INSERT IGNORE INTO channel_members (channel_id, user_id) VALUES (?, ?)",
+		channelID, userID,
+	)
+	return err
+}
+
+func (s *AdminService) RemoveChannelMember(channelID, userID int) error {
+	_, err := s.db.Exec(
+		"DELETE FROM channel_members WHERE channel_id = ? AND user_id = ?",
+		channelID, userID,
+	)
+	return err
+}
+
 func (s *AdminService) ListChannels() ([]map[string]interface{}, error) {
 	rows, err := s.db.Query(`
 		SELECT c.id, c.name, c.created_at,
 		       (SELECT COUNT(*) FROM messages m WHERE m.channel_id = c.id) AS msg_count,
 		       (SELECT COUNT(*) FROM channel_members cm WHERE cm.channel_id = c.id) AS member_count
 		FROM channels c
+		WHERE c.is_dm = 0
 		ORDER BY c.created_at DESC
 	`)
 	if err != nil {

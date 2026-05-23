@@ -57,6 +57,9 @@ export const admin = {
   setRole: (id, role) => api.put(`/api/admin/users/${id}/role`, { role }),
   listChannels: () => api.get('/api/admin/channels'),
   deleteChannel: (id) => api.delete(`/api/admin/channels/${id}`),
+  getChannelMembers: (id) => api.get(`/api/admin/channels/${id}/members`),
+  addChannelMember: (channelId, userId) => api.post(`/api/admin/channels/${channelId}/members`, { user_id: userId }),
+  removeChannelMember: (channelId, userId) => api.delete(`/api/admin/channels/${channelId}/members/${userId}`),
 }
 
 export default api

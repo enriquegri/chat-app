@@ -100,6 +100,9 @@ func main() {
 	admin.HandleFunc("/users/{id}/role", adminHandler.SetRole).Methods("PUT")
 	admin.HandleFunc("/channels", adminHandler.ListChannels).Methods("GET")
 	admin.HandleFunc("/channels/{id}", adminHandler.DeleteChannel).Methods("DELETE")
+	admin.HandleFunc("/channels/{id}/members", adminHandler.GetChannelMembers).Methods("GET")
+	admin.HandleFunc("/channels/{id}/members", adminHandler.AddChannelMember).Methods("POST")
+	admin.HandleFunc("/channels/{id}/members/{userId}", adminHandler.RemoveChannelMember).Methods("DELETE")
 
 	log.Printf("Server running on :%s", cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, r))

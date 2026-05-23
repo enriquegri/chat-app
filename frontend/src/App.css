@@ -1082,3 +1082,122 @@ body {
   transition: background .1s;
 }
 .user-picker-item:hover { background: var(--bg-hover); }
+
+/* ── Admin Channel Member Management ─────────────────────────── */
+.admin-channels-list {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+}
+
+.admin-channel-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.admin-channel-row {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: .75rem 1rem;
+}
+
+.admin-channel-info {
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+  min-width: 0;
+}
+
+.admin-channel-name {
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.admin-channel-meta {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.btn-members {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  padding: .3rem .65rem;
+  transition: background .15s, color .15s;
+  white-space: nowrap;
+}
+.btn-members:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+.admin-members-panel {
+  border-top: 1px solid var(--border-subtle);
+  padding: .75rem 1rem;
+}
+
+.admin-members-add {
+  margin-bottom: .6rem;
+}
+
+.admin-members-add select {
+  background: var(--bg-base);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  padding: .35rem .6rem;
+  width: 100%;
+  max-width: 280px;
+  cursor: pointer;
+}
+.admin-members-add select:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+.admin-members-add select:disabled { opacity: .5; cursor: not-allowed; }
+
+.admin-members-list {
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+}
+
+.admin-no-members {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.admin-member-row {
+  align-items: center;
+  border-radius: var(--radius-sm);
+  display: flex;
+  gap: .5rem;
+  padding: .3rem .4rem;
+}
+.admin-member-row:hover { background: var(--bg-hover); }
+
+.admin-member-name {
+  color: var(--text-primary);
+  flex: 1;
+  font-size: var(--text-sm);
+}
+
+.btn-remove-member {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-danger);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  opacity: 0;
+  padding: .2rem .5rem;
+  transition: opacity .1s, background .1s;
+}
+.admin-member-row:hover .btn-remove-member { opacity: 1; }
+.btn-remove-member:hover { background: var(--color-danger-subtle); border-color: var(--color-danger); }

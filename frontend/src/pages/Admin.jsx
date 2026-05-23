@@ -13,6 +13,9 @@ export default function Admin({ user, onBack }) {
   const [form, setForm] = useState(EMPTY_FORM)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
+  const [expandedChannel, setExpandedChannel] = useState(null)
+  const [channelMembers, setChannelMembers] = useState({})
+  const [addingMember, setAddingMember] = useState({})
 
   useEffect(() => { loadAll() }, [])
 
@@ -73,6 +76,47 @@ export default function Admin({ user, onBack }) {
       setChannels(prev => prev.filter(c => c.id !== id))
     } catch {
       alert('Failed to delete channel')
+    }
+  }
+
+  const toggleChannelMembers = async (channelId) => {
+    if (expandedChannel === channelId) {
+      setExpandedChannel(null)
+      return
+    }
+    setExpandedChannel(channelId)
+    if (!channelMembers[channelId]) {
+      try {
+        const { data } = await adminApi.getChannelMembers(channelId)
+        setChannelMembers(prev => ({ ...prev, [channelId]: data }))
+      } catch {
+        alert('Failed to load members')
+      }
+    }
+  }
+
+  const handleAddMember = async (channelId, userId) => {
+    setAddingMember(prev => ({ ...prev, [channelId]: true }))
+    try {
+      await adminApi.addChannelMember(channelId, userId)
+      const { data } = await adminApi.getChannelMembers(channelId)
+      setChannelMembers(prev => ({ ...prev, [channelId]: data }))
+      setChannels(prev => prev.map(c => c.id === channelId ? { ...c, member_count: data.length } : c))
+    } catch {
+      alert('Failed to add member')
+    } finally {
+      setAddingMember(prev => ({ ...prev, [channelId]: false }))
+    }
+  }
+
+  const handleRemoveMember = async (channelId, userId) => {
+    try {
+      await adminApi.removeChannelMember(channelId, userId)
+      const updated = (channelMembers[channelId] || []).filter(m => m.id !== userId)
+      setChannelMembers(prev => ({ ...prev, [channelId]: updated }))
+      setChannels(prev => prev.map(c => c.id === channelId ? { ...c, member_count: updated.length } : c))
+    } catch {
+      alert('Failed to remove member')
     }
   }
 
@@ -188,39 +232,73 @@ export default function Admin({ user, onBack }) {
         )}
 
         {!loading && tab === 'channels' && (
-          <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Messages</th>
-                <th>Members</th>
-                <th>Created</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {channels.map(c => (
-                <tr key={c.id}>
-                  <td>{c.id}</td>
-                  <td>#{c.name}</td>
-                  <td>{c.msg_count}</td>
-                  <td>{c.member_count}</td>
-                  <td>{new Date(c.created_at).toLocaleDateString()}</td>
-                  <td className="admin-actions">
-                    {c.name !== 'general' && c.name !== 'random' ? (
-                      <button className="btn-delete" onClick={() => handleDeleteChannel(c.id, c.name)}>
-                        Delete
+          <div className="admin-channels-list">
+            {channels.map(c => {
+              const members = channelMembers[c.id] || []
+              const nonMembers = users.filter(u => !members.find(m => m.id === u.id))
+              const isExpanded = expandedChannel === c.id
+              return (
+                <div key={c.id} className="admin-channel-card">
+                  <div className="admin-channel-row">
+                    <div className="admin-channel-info">
+                      <span className="admin-channel-name">#{c.name}</span>
+                      <span className="admin-channel-meta">{c.msg_count} msgs · {c.member_count} members · {new Date(c.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <div className="admin-actions">
+                      <button className="btn-members" onClick={() => toggleChannelMembers(c.id)}>
+                        {isExpanded ? 'Hide members' : 'Manage members'}
                       </button>
-                    ) : (
-                      <span className="admin-protected">Protected</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                      {c.name !== 'general' && c.name !== 'random' ? (
+                        <button className="btn-delete" onClick={() => handleDeleteChannel(c.id, c.name)}>
+                          Delete
+                        </button>
+                      ) : (
+                        <span className="admin-protected">Protected</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="admin-members-panel">
+                      <div className="admin-members-add">
+                        <select
+                          defaultValue=""
+                          onChange={e => {
+                            if (e.target.value) handleAddMember(c.id, parseInt(e.target.value))
+                            e.target.value = ''
+                          }}
+                          disabled={addingMember[c.id] || nonMembers.length === 0}
+                        >
+                          <option value="" disabled>
+                            {nonMembers.length === 0 ? 'All users are members' : 'Add user to channel…'}
+                          </option>
+                          {nonMembers.map(u => (
+                            <option key={u.id} value={u.id}>{u.username}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="admin-members-list">
+                        {members.length === 0 && <span className="admin-no-members">No members</span>}
+                        {members.map(m => (
+                          <div key={m.id} className="admin-member-row">
+                            <span className="user-avatar-sm" style={{ background: m.avatar_color || '#5b5ef4' }}>
+                              {m.username[0].toUpperCase()}
+                            </span>
+                            <span className="admin-member-name">{m.username}</span>
+                            <button
+                              className="btn-remove-member"
+                              onClick={() => handleRemoveMember(c.id, m.id)}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
       </div>

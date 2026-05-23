@@ -110,3 +110,59 @@ func (h *AdminHandler) DeleteChannel(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (h *AdminHandler) GetChannelMembers(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		jsonError(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	members, err := h.adminSvc.GetChannelMembers(id)
+	if err != nil {
+		jsonError(w, "failed to get members", http.StatusInternalServerError)
+		return
+	}
+	if members == nil {
+		jsonResponse(w, []interface{}{}, http.StatusOK)
+		return
+	}
+	jsonResponse(w, members, http.StatusOK)
+}
+
+func (h *AdminHandler) AddChannelMember(w http.ResponseWriter, r *http.Request) {
+	channelID, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		jsonError(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	var body struct {
+		UserID int `json:"user_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.UserID == 0 {
+		jsonError(w, "user_id required", http.StatusBadRequest)
+		return
+	}
+	if err := h.adminSvc.AddChannelMember(channelID, body.UserID); err != nil {
+		jsonError(w, "failed to add member", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *AdminHandler) RemoveChannelMember(w http.ResponseWriter, r *http.Request) {
+	channelID, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		jsonError(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	userID, err := strconv.Atoi(mux.Vars(r)["userId"])
+	if err != nil {
+		jsonError(w, "invalid userId", http.StatusBadRequest)
+		return
+	}
+	if err := h.adminSvc.RemoveChannelMember(channelID, userID); err != nil {
+		jsonError(w, "failed to remove member", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}

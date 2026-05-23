@@ -37,16 +37,15 @@ services:
       mariadb:
         condition: service_healthy
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: chat-frontend
+  proxy:
+    image: nginx:alpine
+    container_name: chat-proxy
     restart: unless-stopped
     ports:
-      - "${APP_PORT:-80}:80"
+      - "80:80"
       - "443:443"
     volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./ssl:/etc/nginx/ssl:ro
     depends_on:
       - backend

@@ -121,9 +121,11 @@ export default function Chat({ user, onLogout, onOpenAdmin }) {
         <div className="channels-section">
           <div className="channels-header">
             <span>Channels</span>
-            <button onClick={() => setShowNewChannel(!showNewChannel)}>+</button>
+            {user.role === 'admin' && (
+              <button onClick={() => setShowNewChannel(!showNewChannel)}>+</button>
+            )}
           </div>
-          {showNewChannel && (
+          {showNewChannel && user.role === 'admin' && (
             <form onSubmit={createChannel} className="new-channel-form">
               <input
                 type="text"

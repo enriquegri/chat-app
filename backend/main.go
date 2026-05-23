@@ -58,7 +58,7 @@ func main() {
 	api.Use(authMiddleware)
 	api.HandleFunc("/me", meHandler).Methods("GET")
 	api.HandleFunc("/channels", channelHandler.List).Methods("GET")
-	api.HandleFunc("/channels", channelHandler.Create).Methods("POST")
+	api.Handle("/channels", adminMiddleware(http.HandlerFunc(channelHandler.Create))).Methods("POST")
 	api.HandleFunc("/channels/{id}/messages", channelHandler.Messages).Methods("GET")
 	api.HandleFunc("/channels/{id}/join", channelHandler.Join).Methods("POST")
 	api.HandleFunc("/upload", handlers.UploadHandler).Methods("POST")

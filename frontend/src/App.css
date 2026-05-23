@@ -1082,4 +1082,3 @@ body {
   transition: background .1s;
 }
 .user-picker-item:hover { background: var(--bg-hover); }
-}

@@ -3,10 +3,10 @@
   "appName": "ChatApp",
   "webDir": "dist",
   "server": {
-    "url": "http://72.61.195.130",
-    "cleartext": true
+    "url": "https://chat.enriquegr.dev",
+    "cleartext": false
   },
   "android": {
-    "allowMixedContent": true
+    "allowMixedContent": false
   }
 }

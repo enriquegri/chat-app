@@ -685,6 +685,62 @@ body {
 .role-badge.admin { background: var(--color-danger-subtle); color: var(--color-danger); }
 .role-badge.user  { background: var(--accent-subtle); color: var(--accent); }
 
+.admin-section-header { display: flex; justify-content: flex-end; margin-bottom: .75rem; }
+
+.btn-create-user {
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-md);
+  color: #fff;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  padding: .45rem 1rem;
+  transition: background .15s;
+}
+.btn-create-user:hover { background: var(--accent-hover); }
+
+.create-user-form {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-wrap: wrap;
+  gap: .6rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+}
+.create-user-form input,
+.create-user-form select {
+  background: var(--bg-base);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  flex: 1 1 160px;
+  font-size: var(--text-sm);
+  padding: .5rem .75rem;
+}
+.create-user-form input:focus,
+.create-user-form select:focus {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
+  outline: none;
+}
+.create-user-form button[type="submit"] {
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-md);
+  color: #fff;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  padding: .5rem 1.25rem;
+  transition: background .15s;
+}
+.create-user-form button[type="submit"]:hover:not(:disabled) { background: var(--accent-hover); }
+.create-user-form button[type="submit"]:disabled { opacity: .5; cursor: not-allowed; }
+.create-user-error { color: var(--color-danger); font-size: var(--text-xs); width: 100%; }
+
 .btn-role {
   background: none;
   border: 1px solid var(--border-default);

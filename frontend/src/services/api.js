@@ -42,6 +42,7 @@ export const profile = {
 
 export const admin = {
   listUsers: () => api.get('/api/admin/users'),
+  createUser: (data) => api.post('/api/admin/users', data),
   deleteUser: (id) => api.delete(`/api/admin/users/${id}`),
   setRole: (id, role) => api.put(`/api/admin/users/${id}/role`, { role }),
   listChannels: () => api.get('/api/admin/channels'),

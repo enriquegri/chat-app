@@ -4,6 +4,7 @@ import (
 	"database/sql"
 
 	"github.com/yourusername/chat-app/models"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type AdminService struct {
@@ -32,6 +33,21 @@ func (s *AdminService) ListUsers() ([]models.UserAdmin, error) {
 		users = append(users, u)
 	}
 	return users, nil
+}
+
+func (s *AdminService) CreateUser(username, email, password, role string) error {
+	if role != "admin" && role != "user" {
+		role = "user"
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.Exec(
+		`INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)`,
+		username, email, string(hash), role,
+	)
+	return err
 }
 
 func (s *AdminService) DeleteUser(id int) error {

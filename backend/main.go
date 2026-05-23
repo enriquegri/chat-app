@@ -79,6 +79,7 @@ func main() {
 	admin := api.PathPrefix("/admin").Subrouter()
 	admin.Use(adminMiddleware)
 	admin.HandleFunc("/users", adminHandler.ListUsers).Methods("GET")
+	admin.HandleFunc("/users", adminHandler.CreateUser).Methods("POST")
 	admin.HandleFunc("/users/{id}", adminHandler.DeleteUser).Methods("DELETE")
 	admin.HandleFunc("/users/{id}/role", adminHandler.SetRole).Methods("PUT")
 	admin.HandleFunc("/channels", adminHandler.ListChannels).Methods("GET")

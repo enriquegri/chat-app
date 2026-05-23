@@ -30,6 +30,28 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, users, http.StatusOK)
 }
 
+func (h *AdminHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Username string `json:"username"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
+		Role     string `json:"role"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		jsonError(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	if body.Username == "" || body.Email == "" || body.Password == "" {
+		jsonError(w, "username, email and password are required", http.StatusBadRequest)
+		return
+	}
+	if err := h.adminSvc.CreateUser(body.Username, body.Email, body.Password, body.Role); err != nil {
+		jsonError(w, "failed to create user: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+}
+
 func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {

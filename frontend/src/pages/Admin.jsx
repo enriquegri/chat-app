@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react'
 import { admin as adminApi } from '../services/api'
 
+const EMPTY_FORM = { username: '', email: '', password: '', role: 'user' }
+
 export default function Admin({ user, onBack }) {
   const [tab, setTab] = useState('users')
   const [users, setUsers] = useState([])
   const [channels, setChannels] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [showCreate, setShowCreate] = useState(false)
+  const [form, setForm] = useState(EMPTY_FORM)
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState('')
 
-  useEffect(() => {
-    loadAll()
-  }, [])
+  useEffect(() => { loadAll() }, [])
 
   const loadAll = async () => {
     setLoading(true)
@@ -23,6 +27,22 @@ export default function Admin({ user, onBack }) {
       setError('Error loading data')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleCreateUser = async (e) => {
+    e.preventDefault()
+    setCreating(true)
+    setCreateError('')
+    try {
+      await adminApi.createUser(form)
+      setForm(EMPTY_FORM)
+      setShowCreate(false)
+      await loadAll()
+    } catch (err) {
+      setCreateError(err.response?.data?.error || 'Failed to create user')
+    } finally {
+      setCreating(false)
     }
   }
 
@@ -78,52 +98,93 @@ export default function Admin({ user, onBack }) {
         {error && <div className="admin-error">{error}</div>}
 
         {!loading && tab === 'users' && (
-          <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Username</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Joined</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map(u => (
-                <tr key={u.id} className={u.id === user.id ? 'admin-table-self' : ''}>
-                  <td>{u.id}</td>
-                  <td>{u.username}</td>
-                  <td>{u.email}</td>
-                  <td>
-                    <span className={`role-badge ${u.role}`}>{u.role}</span>
-                  </td>
-                  <td>{new Date(u.created_at).toLocaleDateString()}</td>
-                  <td className="admin-actions">
-                    {u.id !== user.id && (
-                      <>
-                        <button
-                          className="btn-role"
-                          onClick={() => handleToggleRole(u.id, u.role)}
-                        >
-                          {u.role === 'admin' ? 'Revoke admin' : 'Make admin'}
-                        </button>
-                        <button
-                          className="btn-delete"
-                          onClick={() => handleDeleteUser(u.id, u.username)}
-                        >
-                          Delete
-                        </button>
-                      </>
-                    )}
-                    {u.id === user.id && <span className="admin-you">(you)</span>}
-                  </td>
+          <>
+            <div className="admin-section-header">
+              <button
+                className="btn-create-user"
+                onClick={() => { setShowCreate(v => !v); setCreateError('') }}
+              >
+                {showCreate ? '✕ Cancel' : '+ New user'}
+              </button>
+            </div>
+
+            {showCreate && (
+              <form className="create-user-form" onSubmit={handleCreateUser}>
+                <input
+                  type="text"
+                  placeholder="Username"
+                  value={form.username}
+                  onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+                  required
+                  autoFocus
+                />
+                <input
+                  type="email"
+                  placeholder="Email"
+                  value={form.email}
+                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                  required
+                />
+                <input
+                  type="password"
+                  placeholder="Password"
+                  value={form.password}
+                  onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                  required
+                />
+                <select
+                  value={form.role}
+                  onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
+                >
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                </select>
+                {createError && <span className="create-user-error">{createError}</span>}
+                <button type="submit" disabled={creating}>
+                  {creating ? 'Creating…' : 'Create user'}
+                </button>
+              </form>
+            )}
+
+            <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Username</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Joined</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
+              </thead>
+              <tbody>
+                {users.map(u => (
+                  <tr key={u.id} className={u.id === user.id ? 'admin-table-self' : ''}>
+                    <td>{u.id}</td>
+                    <td>{u.username}</td>
+                    <td>{u.email}</td>
+                    <td><span className={`role-badge ${u.role}`}>{u.role}</span></td>
+                    <td>{new Date(u.created_at).toLocaleDateString()}</td>
+                    <td className="admin-actions">
+                      {u.id !== user.id && (
+                        <>
+                          <button className="btn-role" onClick={() => handleToggleRole(u.id, u.role)}>
+                            {u.role === 'admin' ? 'Revoke admin' : 'Make admin'}
+                          </button>
+                          <button className="btn-delete" onClick={() => handleDeleteUser(u.id, u.username)}>
+                            Delete
+                          </button>
+                        </>
+                      )}
+                      {u.id === user.id && <span className="admin-you">(you)</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            </div>
+          </>
         )}
 
         {!loading && tab === 'channels' && (
@@ -149,10 +210,7 @@ export default function Admin({ user, onBack }) {
                   <td>{new Date(c.created_at).toLocaleDateString()}</td>
                   <td className="admin-actions">
                     {c.name !== 'general' && c.name !== 'random' ? (
-                      <button
-                        className="btn-delete"
-                        onClick={() => handleDeleteChannel(c.id, c.name)}
-                      >
+                      <button className="btn-delete" onClick={() => handleDeleteChannel(c.id, c.name)}>
                         Delete
                       </button>
                     ) : (

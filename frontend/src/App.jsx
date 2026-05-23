@@ -20,22 +20,57 @@ function App() {
       .catch(() => setRegistrationEnabled(false))
   }, [])
 
+  // Handle Android back gesture for admin/profile overlays
+  useEffect(() => {
+    const handler = () => {
+      if (page !== 'chat') setPage('chat')
+    }
+    window.addEventListener('popstate', handler)
+    return () => window.removeEventListener('popstate', handler)
+  }, [page])
+
+  const goToAdmin = () => {
+    window.history.pushState({ overlay: 'admin' }, '')
+    setPage('admin')
+  }
+
+  const goToProfile = () => {
+    window.history.pushState({ overlay: 'profile' }, '')
+    setPage('profile')
+  }
+
+  const goToChat = () => {
+    setPage('chat')
+  }
+
   if (loading) return <div className="loading">Loading...</div>
 
   if (user) {
-    if (page === 'admin' && user.role === 'admin') {
-      return <Admin user={user} onBack={() => setPage('chat')} />
-    }
-    if (page === 'profile') {
-      return <Profile user={user} onBack={() => setPage('chat')} onUpdate={(u) => { updateUser(u); setPage('chat') }} />
-    }
     return (
-      <Chat
-        user={user}
-        onLogout={logout}
-        onOpenAdmin={user.role === 'admin' ? () => setPage('admin') : null}
-        onOpenProfile={() => setPage('profile')}
-      />
+      <div style={{ position: 'relative', height: '100dvh', overflow: 'hidden' }}>
+        {/* Chat siempre montado — evita flash al volver de admin/profile */}
+        <Chat
+          user={user}
+          onLogout={logout}
+          onOpenAdmin={user.role === 'admin' ? goToAdmin : null}
+          onOpenProfile={goToProfile}
+        />
+        {/* Admin/Profile como overlays fijos encima */}
+        {page === 'admin' && user.role === 'admin' && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 100 }}>
+            <Admin user={user} onBack={goToChat} />
+          </div>
+        )}
+        {page === 'profile' && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 100 }}>
+            <Profile
+              user={user}
+              onBack={goToChat}
+              onUpdate={(u) => { updateUser(u); goToChat() }}
+            />
+          </div>
+        )}
+      </div>
     )
   }
 

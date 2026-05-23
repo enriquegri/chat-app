@@ -533,6 +533,7 @@ body {
 .emoji-picker {
   position: absolute;
   bottom: calc(100% + 4px);
+  top: auto;
   right: 0;
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
@@ -554,6 +555,8 @@ body {
   line-height: 1;
 }
 .emoji-picker button:hover { background: var(--bg-elevated); }
+/* Picker abierto hacia abajo (primer mensaje cerca del top) */
+.emoji-picker.below { bottom: auto; top: calc(100% + 4px); }
 
 /* ── Composer / message input ─────────────────────────────────── */
 .composer {
@@ -1005,7 +1008,7 @@ body {
   .admin-layout { height: 100dvh; }
 
   .admin-content {
-    padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
+    padding-bottom: max(3rem, env(safe-area-inset-bottom, 0px));
   }
 
   .admin-header {

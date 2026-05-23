@@ -5,7 +5,9 @@ const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥']
 
 export default function Message({ message, currentUserId, onReactionUpdate, isCompact }) {
   const [showPicker, setShowPicker] = useState(false)
+  const [pickerBelow, setPickerBelow] = useState(false)
   const pickerRef = useRef(null)
+  const triggerRef = useRef(null)
 
   useEffect(() => {
     if (!showPicker) return
@@ -29,6 +31,15 @@ export default function Message({ message, currentUserId, onReactionUpdate, isCo
     setShowPicker(false)
     await reactionsApi.toggle(message.id, encodeURIComponent(emoji))
     if (onReactionUpdate) onReactionUpdate(message.id)
+  }
+
+  const handleTogglePicker = () => {
+    if (!showPicker && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect()
+      // Si el trigger está a menos de 160px del top, abrir el picker hacia abajo
+      setPickerBelow(rect.top < 160)
+    }
+    setShowPicker(p => !p)
   }
 
   const time = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -90,12 +101,13 @@ export default function Message({ message, currentUserId, onReactionUpdate, isCo
 
       <div className={`msg-actions${showPicker ? ' picker-open' : ''}`} ref={pickerRef}>
         <button
+          ref={triggerRef}
           className="reaction-trigger"
-          onClick={() => setShowPicker(p => !p)}
+          onClick={handleTogglePicker}
           title="React"
         >😊</button>
         {showPicker && (
-          <div className="emoji-picker">
+          <div className={`emoji-picker${pickerBelow ? ' below' : ''}`}>
             {QUICK_EMOJIS.map(e => (
               <button key={e} onMouseDown={() => handleReaction(e)}>{e}</button>
             ))}

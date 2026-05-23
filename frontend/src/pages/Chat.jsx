@@ -155,15 +155,48 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     )
   }
 
+  const channelHistoryPushed = useRef(false)
+
   const selectChannel = (ch) => {
     setActiveDMUser(null)
+    if (ch && window.innerWidth < 768) {
+      window.history.pushState({ level: 'channel' }, '')
+      channelHistoryPushed.current = true
+    }
     setActiveChannel(ch)
   }
 
   const selectDM = (conv) => {
+    if (window.innerWidth < 768) {
+      window.history.pushState({ level: 'channel' }, '')
+      channelHistoryPushed.current = true
+    }
     setActiveDMUser({ id: conv.user_id, username: conv.username, avatar_color: conv.avatar_color })
     setActiveChannel({ id: conv.channel_id, name: conv.username })
   }
+
+  const handleMobileBack = () => {
+    setActiveDMUser(null)
+    if (channelHistoryPushed.current) {
+      channelHistoryPushed.current = false
+      window.history.back()
+    } else {
+      setActiveChannel(null)
+    }
+  }
+
+  // Gesto atrás en Android: si no hay overlay abierto, vuelve a la lista de canales
+  useEffect(() => {
+    const handler = (e) => {
+      if (window.innerWidth < 768 && !e.state?.level && !e.state?.overlay) {
+        channelHistoryPushed.current = false
+        setActiveChannel(null)
+        setActiveDMUser(null)
+      }
+    }
+    window.addEventListener('popstate', handler)
+    return () => window.removeEventListener('popstate', handler)
+  }, [])
 
   const createChannel = async (e) => {
     e.preventDefault()
@@ -294,7 +327,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
         {activeChannel ? (
           <>
             <div className="chat-header">
-              <button className="mobile-back" onClick={() => { setActiveChannel(null); setActiveDMUser(null) }}>←</button>
+              <button className="mobile-back" onClick={handleMobileBack}>←</button>
               <div className="chat-header-title">
                 {activeDMUser ? (
                   <h3>

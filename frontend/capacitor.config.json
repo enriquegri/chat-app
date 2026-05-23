@@ -1,0 +1,12 @@
+{
+  "appId": "dev.enriquegr.chatapp",
+  "appName": "ChatApp",
+  "webDir": "dist",
+  "server": {
+    "url": "http://72.61.195.130",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

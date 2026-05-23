@@ -43,6 +43,11 @@ func main() {
 	r := mux.NewRouter()
 	r.Use(corsMiddleware)
 
+	// Handle CORS preflight for all routes
+	r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}).Methods("OPTIONS")
+
 	// Servir archivos subidos
 	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 

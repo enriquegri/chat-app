@@ -34,6 +34,7 @@ services:
       PORT: 8080
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       PUBLIC_URL: ${PUBLIC_URL:-https://api.enriquegr.dev}
+      REGISTRATION_ENABLED: ${REGISTRATION_ENABLED:-false}
     volumes:
       - uploads_data:/app/uploads
     depends_on:

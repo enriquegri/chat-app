@@ -9,14 +9,20 @@ import (
 )
 
 type AuthHandler struct {
-	authSvc *services.AuthService
+	authSvc             *services.AuthService
+	registrationEnabled bool
 }
 
-func NewAuthHandler(authSvc *services.AuthService) *AuthHandler {
-	return &AuthHandler{authSvc: authSvc}
+func NewAuthHandler(authSvc *services.AuthService, registrationEnabled bool) *AuthHandler {
+	return &AuthHandler{authSvc: authSvc, registrationEnabled: registrationEnabled}
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
+	if !h.registrationEnabled {
+		jsonError(w, "registration is disabled", http.StatusForbidden)
+		return
+	}
+
 	var req models.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "invalid request body", http.StatusBadRequest)

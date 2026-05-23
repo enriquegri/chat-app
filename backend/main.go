@@ -31,7 +31,7 @@ func main() {
 	go hub.Run()
 
 	// Handlers
-	authHandler := handlers.NewAuthHandler(authSvc)
+	authHandler := handlers.NewAuthHandler(authSvc, cfg.RegistrationEnabled)
 	channelHandler := handlers.NewChannelHandler(channelSvc)
 	reactionHandler := handlers.NewReactionHandler(reactionSvc)
 	adminHandler := handlers.NewAdminHandler(adminSvc)

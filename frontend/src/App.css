@@ -515,7 +515,8 @@ body {
   padding: .2rem .3rem;
   z-index: 10;
 }
-.msg-row:hover .msg-actions { display: flex; align-items: center; gap: .1rem; }
+.msg-row:hover .msg-actions,
+.msg-actions.picker-open { display: flex; align-items: center; gap: .1rem; }
 
 .reaction-trigger {
   background: none;
@@ -894,6 +895,9 @@ body {
 .admin-header {
   padding-top: max(.875rem, env(safe-area-inset-top, 0px));
 }
+.profile-header {
+  padding-top: max(.875rem, env(safe-area-inset-top, 0px));
+}
 .composer {
   padding-bottom: max(.75rem, env(safe-area-inset-bottom, 0px));
 }
@@ -999,6 +1003,10 @@ body {
 
   /* Admin */
   .admin-layout { height: 100dvh; }
+
+  .admin-content {
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
+  }
 
   .admin-header {
     gap: .5rem;

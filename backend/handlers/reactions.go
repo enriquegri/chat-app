@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -13,10 +14,11 @@ import (
 
 type ReactionHandler struct {
 	reactionSvc *services.ReactionService
+	hub         *services.Hub
 }
 
-func NewReactionHandler(svc *services.ReactionService) *ReactionHandler {
-	return &ReactionHandler{reactionSvc: svc}
+func NewReactionHandler(svc *services.ReactionService, hub *services.Hub) *ReactionHandler {
+	return &ReactionHandler{reactionSvc: svc, hub: hub}
 }
 
 func (h *ReactionHandler) Toggle(w http.ResponseWriter, r *http.Request) {
@@ -41,6 +43,18 @@ func (h *ReactionHandler) Toggle(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		jsonError(w, "error toggling reaction", http.StatusInternalServerError)
 		return
+	}
+
+	// Broadcast reaction_update a todos los clientes del canal
+	if channelID, err := h.reactionSvc.GetMessageChannelID(messageID); err == nil {
+		out := models.WSMessage{
+			Type:      "reaction_update",
+			ChannelID: channelID,
+			MessageID: messageID,
+		}
+		if data, err := json.Marshal(out); err == nil {
+			h.hub.Broadcast(data)
+		}
 	}
 
 	status := "removed"

@@ -34,7 +34,7 @@ func main() {
 	// Handlers
 	authHandler := handlers.NewAuthHandler(authSvc, cfg.RegistrationEnabled)
 	channelHandler := handlers.NewChannelHandler(channelSvc)
-	reactionHandler := handlers.NewReactionHandler(reactionSvc)
+	reactionHandler := handlers.NewReactionHandler(reactionSvc, hub)
 	adminHandler := handlers.NewAdminHandler(adminSvc)
 	profileHandler := handlers.NewProfileHandler(authSvc)
 	wsHandler := handlers.NewWSHandler(hub, authSvc, channelSvc, cfg.AllowedOrigins)

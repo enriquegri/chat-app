@@ -88,7 +88,7 @@ export default function Message({ message, currentUserId, onReactionUpdate, isCo
         )}
       </div>
 
-      <div className="msg-actions" ref={pickerRef}>
+      <div className={`msg-actions${showPicker ? ' picker-open' : ''}`} ref={pickerRef}>
         <button
           className="reaction-trigger"
           onClick={() => setShowPicker(p => !p)}

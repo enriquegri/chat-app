@@ -77,7 +77,14 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     }, TYPING_TIMEOUT)
   }, [])
 
-  const { send, sendTyping } = useWebSocket(activeChannel?.id, handleNewMessage, handleTyping)
+  const loadReactions = useCallback(async (messageId) => {
+    try {
+      const { data } = await reactionsApi.list(messageId)
+      setMessages(prev => prev.map(m => m.id === messageId ? { ...m, reactions: data } : m))
+    } catch {}
+  }, [])
+
+  const { send, sendTyping } = useWebSocket(activeChannel?.id, handleNewMessage, handleTyping, loadReactions)
 
   useEffect(() => {
     channelsApi.list().then(({ data }) => {
@@ -102,13 +109,6 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, typingUsers])
-
-  const loadReactions = async (messageId) => {
-    try {
-      const { data } = await reactionsApi.list(messageId)
-      setMessages(prev => prev.map(m => m.id === messageId ? { ...m, reactions: data } : m))
-    } catch {}
-  }
 
   const sendMessage = async (e) => {
     e.preventDefault()

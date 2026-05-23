@@ -54,6 +54,13 @@ func (s *ReactionService) GetForMessage(messageID int) ([]models.Reaction, error
 	return reactions, nil
 }
 
+// GetMessageChannelID devuelve el channel_id de un mensaje dado su id
+func (s *ReactionService) GetMessageChannelID(messageID int) (int, error) {
+	var channelID int
+	err := s.db.QueryRow("SELECT channel_id FROM messages WHERE id = ?", messageID).Scan(&channelID)
+	return channelID, err
+}
+
 // GetForChannel devuelve todas las reactions de mensajes de un canal (para carga inicial)
 func (s *ReactionService) GetForChannel(channelID int) (map[int][]models.Reaction, error) {
 	rows, err := s.db.Query(`

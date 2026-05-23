@@ -19,6 +19,7 @@ type WSMessage struct {
 	Type      string  `json:"type"`
 	Message   Message `json:"message,omitempty"`
 	ChannelID int     `json:"channel_id,omitempty"`
+	MessageID int     `json:"message_id,omitempty"`
 	Content   string  `json:"content,omitempty"`
 	Username  string  `json:"username,omitempty"`
 	FileURL   string  `json:"file_url,omitempty"`

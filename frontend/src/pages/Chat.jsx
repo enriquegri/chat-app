@@ -25,17 +25,14 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const fileInputRef = useRef(null)
   const activeChannelRef = useRef(null)
 
-  // Keep ref in sync so callbacks always see current channel
   useEffect(() => { activeChannelRef.current = activeChannel }, [activeChannel])
 
-  // Request notification permission on mount
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission()
     }
   }, [])
 
-  // Reset unread when tab becomes visible
   useEffect(() => {
     const onVisible = () => {
       if (!document.hidden) {
@@ -47,19 +44,15 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
 
-  // Update tab title with unread count
   useEffect(() => {
     document.title = unread > 0 ? `(${unread}) ChatApp` : 'ChatApp'
   }, [unread])
 
   const handleNewMessage = useCallback((msg) => {
     setMessages(prev => [...prev, { ...msg, reactions: [] }])
-
     if (msg.user_id === user.id) return
-
     if (document.hidden) {
       setUnread(prev => prev + 1)
-
       if ('Notification' in window && Notification.permission === 'granted') {
         const ch = activeChannelRef.current
         const n = new Notification(`#${ch?.name || 'chat'}`, {
@@ -96,7 +89,6 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     setUnread(0)
     channelsApi.messages(activeChannel.id).then(({ data }) => {
       setMessages(data.map(m => ({ ...m, reactions: [] })))
-      // Cargar reactions para todos los mensajes
       data.forEach(m => loadReactions(m.id))
     })
   }, [activeChannel])
@@ -117,6 +109,13 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     if (!input.trim()) return
     send(input.trim())
     setInput('')
+  }
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      sendMessage(e)
+    }
   }
 
   const handleInputChange = (e) => {
@@ -182,18 +181,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
           <h2>ChatApp</h2>
           <button className="logout-btn" onClick={onLogout}>Exit</button>
         </div>
-        <div className="user-info">
-          <span className="user-avatar" style={{ background: user.avatar_color || '#5865f2' }}>
-            {user.username[0].toUpperCase()}
-          </span>
-          <div>
-            <div>{user.username}</div>
-            <button className="profile-link" onClick={onOpenProfile}>Edit profile</button>
-          </div>
-        </div>
-        {onOpenAdmin && (
-          <button className="admin-link" onClick={onOpenAdmin}>⚙ Admin Panel</button>
-        )}
+
         <div className="channels-section">
           <div className="channels-header">
             <span>Channels</span>
@@ -225,6 +213,21 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
             ))}
           </ul>
         </div>
+
+        <div className="sidebar-footer">
+          <div className="user-info">
+            <span className="user-avatar" style={{ background: user.avatar_color || '#5b5ef4' }}>
+              {user.username[0].toUpperCase()}
+            </span>
+            <div className="user-info-text">
+              <span className="user-info-name">{user.username}</span>
+              <button className="profile-link" onClick={onOpenProfile}>Edit profile</button>
+            </div>
+          </div>
+          {onOpenAdmin && (
+            <button className="admin-link" onClick={onOpenAdmin}>⚙ Admin Panel</button>
+          )}
+        </div>
       </aside>
 
       <main className="chat-main">
@@ -241,6 +244,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
                 title="Search messages"
               >🔍</button>
             </div>
+
             {searchOpen && (
               <div className="search-bar">
                 <input
@@ -258,7 +262,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
                     )}
                     {searchResults.map(msg => (
                       <div key={msg.id} className="search-result">
-                        <span className="search-result-author" style={{ color: msg.avatar_color || '#9ea3a8' }}>
+                        <span className="search-result-author" style={{ color: msg.avatar_color || '#8a8f98' }}>
                           {msg.username}
                         </span>
                         <span className="search-result-content">
@@ -273,21 +277,30 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
                 )}
               </div>
             )}
+
             <div className="messages-container">
-              {messages.map(msg => (
-                <Message
-                  key={msg.id}
-                  message={msg}
-                  currentUserId={user.id}
-                  onReactionUpdate={loadReactions}
-                />
-              ))}
+              {messages.map((msg, i) => {
+                const prev = messages[i - 1]
+                const isCompact = prev
+                  && prev.user_id === msg.user_id
+                  && (new Date(msg.created_at) - new Date(prev.created_at)) < 5 * 60 * 1000
+                return (
+                  <Message
+                    key={msg.id}
+                    message={msg}
+                    currentUserId={user.id}
+                    onReactionUpdate={loadReactions}
+                    isCompact={isCompact}
+                  />
+                )
+              })}
               {typingText && (
                 <div className="typing-indicator">{typingText}</div>
               )}
               <div ref={messagesEndRef} />
             </div>
-            <form className="message-input" onSubmit={sendMessage}>
+
+            <form className="composer" onSubmit={sendMessage}>
               <input
                 type="file"
                 ref={fileInputRef}
@@ -295,22 +308,31 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
                 style={{ display: 'none' }}
                 accept="image/*,.pdf,.txt"
               />
-              <button
-                type="button"
-                className="attach-btn"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                title="Attach file"
-              >
-                {uploading ? '⏳' : '📎'}
-              </button>
               <input
+                className="composer-input"
                 type="text"
                 placeholder={`Message #${activeChannel.name}`}
                 value={input}
                 onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
               />
-              <button type="submit" disabled={!input.trim()}>Send</button>
+              <div className="composer-actions">
+                <button
+                  type="button"
+                  className="attach-btn"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  title="Attach file"
+                >
+                  {uploading ? '⏳' : '📎'}
+                </button>
+                <button
+                  type="submit"
+                  className="send-btn"
+                  disabled={!input.trim()}
+                  title="Send"
+                >→</button>
+              </div>
             </form>
           </>
         ) : (

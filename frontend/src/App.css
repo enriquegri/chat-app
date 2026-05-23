@@ -66,3 +66,26 @@ body {
 .message-input button { background: #5865f2; border: none; border-radius: 6px; color: #fff; cursor: pointer; font-weight: 600; padding: .6rem 1rem; }
 .message-input button:hover { background: #4752c4; }
 .no-channel { display: flex; align-items: center; justify-content: center; flex: 1; color: #9ea3a8; }
+
+/* Typing indicator */
+.typing-indicator { color: #9ea3a8; font-size: .8rem; font-style: italic; padding: .2rem .5rem; }
+
+/* Reactions */
+.message-bubble-wrap { position: relative; display: flex; align-items: flex-start; gap: .25rem; }
+.reaction-trigger { background: none; border: none; cursor: pointer; font-size: .9rem; opacity: 0; transition: opacity .15s; padding: .1rem; }
+.message:hover .reaction-trigger { opacity: 1; }
+.emoji-picker { position: absolute; bottom: 110%; left: 0; background: #2f3136; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.4); display: flex; gap: .25rem; padding: .4rem; z-index: 10; }
+.emoji-picker button { background: none; border: none; cursor: pointer; font-size: 1.2rem; padding: .15rem; border-radius: 4px; }
+.emoji-picker button:hover { background: #40444b; }
+.reactions { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .25rem; }
+.reaction-badge { background: #40444b; border: 1px solid transparent; border-radius: 12px; cursor: pointer; font-size: .8rem; padding: .1rem .5rem; }
+.reaction-badge.mine { border-color: #5865f2; background: rgba(88,101,242,.2); }
+.reaction-badge:hover { background: #4f545c; }
+
+/* File attachment */
+.attach-btn { background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: .4rem; color: #9ea3a8; }
+.attach-btn:hover:not(:disabled) { color: #fff; }
+.attach-btn:disabled { opacity: .5; cursor: not-allowed; }
+.message-img { border-radius: 8px; max-width: 300px; max-height: 300px; object-fit: cover; display: block; }
+.message-file { color: #5865f2; font-size: .85rem; text-decoration: none; }
+.message-file:hover { text-decoration: underline; }

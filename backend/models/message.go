@@ -8,6 +8,8 @@ type Message struct {
 	UserID    int       `json:"user_id"`
 	Username  string    `json:"username"`
 	Content   string    `json:"content"`
+	FileURL   string    `json:"file_url,omitempty"`
+	FileType  string    `json:"file_type,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -17,4 +19,13 @@ type WSMessage struct {
 	Message   Message `json:"message,omitempty"`
 	ChannelID int     `json:"channel_id,omitempty"`
 	Content   string  `json:"content,omitempty"`
+	Username  string  `json:"username,omitempty"`
+}
+
+type Reaction struct {
+	ID        int    `json:"id"`
+	MessageID int    `json:"message_id"`
+	UserID    int    `json:"user_id"`
+	Username  string `json:"username"`
+	Emoji     string `json:"emoji"`
 }

@@ -59,8 +59,18 @@ func (h *Hub) Run() {
 			var wsMsg models.WSMessage
 			json.Unmarshal(message, &wsMsg)
 
+			// ChannelID viene de Message.ChannelID para mensajes, o de ChannelID para typing
+			channelID := wsMsg.Message.ChannelID
+			if channelID == 0 {
+				channelID = wsMsg.ChannelID
+			}
+
 			for client := range h.clients {
-				if client.ChannelID != wsMsg.Message.ChannelID {
+				if client.ChannelID != channelID {
+					continue
+				}
+				// typing no se envía al propio remitente
+				if wsMsg.Type == "typing" && client.Username == wsMsg.Username {
 					continue
 				}
 				select {
@@ -128,20 +138,30 @@ func (c *Client) ReadPump(hub *Hub, channelSvc *ChannelService) {
 			continue
 		}
 
-		msg := models.Message{
-			ChannelID: c.ChannelID,
-			UserID:    c.ID,
-			Username:  c.Username,
-			Content:   wsMsg.Content,
-		}
+		switch wsMsg.Type {
+		case "typing":
+			out := models.WSMessage{
+				Type:      "typing",
+				ChannelID: c.ChannelID,
+				Username:  c.Username,
+			}
+			data, _ := json.Marshal(out)
+			hub.Broadcast(data)
 
-		if err := channelSvc.SaveMessage(&msg); err != nil {
-			log.Printf("Error saving message: %v", err)
-			continue
+		default: // "message"
+			msg := models.Message{
+				ChannelID: c.ChannelID,
+				UserID:    c.ID,
+				Username:  c.Username,
+				Content:   wsMsg.Content,
+			}
+			if err := channelSvc.SaveMessage(&msg); err != nil {
+				log.Printf("Error saving message: %v", err)
+				continue
+			}
+			out := models.WSMessage{Type: "message", Message: msg}
+			data, _ := json.Marshal(out)
+			hub.Broadcast(data)
 		}
-
-		out := models.WSMessage{Type: "message", Message: msg}
-		data, _ := json.Marshal(out)
-		hub.Broadcast(data)
 	}
 }

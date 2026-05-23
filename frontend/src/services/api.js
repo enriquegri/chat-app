@@ -11,7 +11,6 @@ api.interceptors.request.use(config => {
 export const auth = {
   register: (data) => api.post('/auth/register', data),
   login: (data) => api.post('/auth/login', data),
-  me: () => api.get('/api/me'),
 }
 
 export const channels = {
@@ -19,6 +18,19 @@ export const channels = {
   create: (data) => api.post('/api/channels', data),
   messages: (id) => api.get(`/api/channels/${id}/messages`),
   join: (id) => api.post(`/api/channels/${id}/join`),
+}
+
+export const reactions = {
+  toggle: (messageId, emoji) => api.post(`/api/messages/${messageId}/reactions/${emoji}`),
+  list: (messageId) => api.get(`/api/messages/${messageId}/reactions`),
+}
+
+export const uploads = {
+  upload: (file) => {
+    const form = new FormData()
+    form.append('file', file)
+    return api.post('/api/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+  },
 }
 
 export default api

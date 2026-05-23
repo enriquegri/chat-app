@@ -25,17 +25,22 @@ func main() {
 	// Services
 	authSvc := services.NewAuthService(db.DB, cfg.JWTSecret)
 	channelSvc := services.NewChannelService(db.DB)
+	reactionSvc := services.NewReactionService(db.DB)
 	hub := services.NewHub()
 	go hub.Run()
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(authSvc)
 	channelHandler := handlers.NewChannelHandler(channelSvc)
+	reactionHandler := handlers.NewReactionHandler(reactionSvc)
 	wsHandler := handlers.NewWSHandler(hub, authSvc, channelSvc)
 	authMiddleware := middleware.Auth(authSvc)
 
 	r := mux.NewRouter()
 	r.Use(corsMiddleware)
+
+	// Servir archivos subidos
+	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 
 	// Public routes
 	r.HandleFunc("/health", healthHandler).Methods("GET")
@@ -53,6 +58,9 @@ func main() {
 	api.HandleFunc("/channels", channelHandler.Create).Methods("POST")
 	api.HandleFunc("/channels/{id}/messages", channelHandler.Messages).Methods("GET")
 	api.HandleFunc("/channels/{id}/join", channelHandler.Join).Methods("POST")
+	api.HandleFunc("/upload", handlers.UploadHandler).Methods("POST")
+	api.HandleFunc("/messages/{messageId}/reactions/{emoji}", reactionHandler.Toggle).Methods("POST")
+	api.HandleFunc("/messages/{messageId}/reactions", reactionHandler.List).Methods("GET")
 
 	log.Printf("Server running on :%s", cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, r))

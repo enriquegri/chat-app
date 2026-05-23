@@ -73,7 +73,8 @@ func (s *ChannelService) JoinChannel(channelID, userID int) error {
 
 func (s *ChannelService) GetMessages(channelID, limit int) ([]models.Message, error) {
 	rows, err := s.db.Query(`
-		SELECT m.id, m.channel_id, m.user_id, u.username, m.content, m.created_at
+		SELECT m.id, m.channel_id, m.user_id, u.username, m.content,
+		       COALESCE(m.file_url,''), COALESCE(m.file_type,''), m.created_at
 		FROM messages m
 		JOIN users u ON m.user_id = u.id
 		WHERE m.channel_id = ?
@@ -87,13 +88,13 @@ func (s *ChannelService) GetMessages(channelID, limit int) ([]models.Message, er
 	var messages []models.Message
 	for rows.Next() {
 		var msg models.Message
-		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.Content, &msg.CreatedAt); err != nil {
+		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username,
+			&msg.Content, &msg.FileURL, &msg.FileType, &msg.CreatedAt); err != nil {
 			return nil, err
 		}
 		messages = append(messages, msg)
 	}
 
-	// Invertir para orden cronológico
 	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
 		messages[i], messages[j] = messages[j], messages[i]
 	}
@@ -102,8 +103,8 @@ func (s *ChannelService) GetMessages(channelID, limit int) ([]models.Message, er
 
 func (s *ChannelService) SaveMessage(msg *models.Message) error {
 	result, err := s.db.Exec(
-		"INSERT INTO messages (channel_id, user_id, content) VALUES (?, ?, ?)",
-		msg.ChannelID, msg.UserID, msg.Content,
+		"INSERT INTO messages (channel_id, user_id, content, file_url, file_type) VALUES (?, ?, ?, ?, ?)",
+		msg.ChannelID, msg.UserID, msg.Content, msg.FileURL, msg.FileType,
 	)
 	if err != nil {
 		return err

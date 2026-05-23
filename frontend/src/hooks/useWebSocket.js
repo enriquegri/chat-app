@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react'
 
-export function useWebSocket(channelId, onMessage, onTyping, onReactionUpdate) {
+export function useWebSocket(channelId, onMessage, onTyping, onReactionUpdate, onMessageEdited, onMessageDeleted) {
   const ws = useRef(null)
 
   const connect = useCallback(() => {
@@ -23,12 +23,14 @@ export function useWebSocket(channelId, onMessage, onTyping, onReactionUpdate) {
         if (data.type === 'message') onMessage(data.message)
         if (data.type === 'typing' && onTyping) onTyping(data.username)
         if (data.type === 'reaction_update' && onReactionUpdate) onReactionUpdate(data.message_id)
+        if (data.type === 'message_edited' && onMessageEdited) onMessageEdited(data.message_id, data.content)
+        if (data.type === 'message_deleted' && onMessageDeleted) onMessageDeleted(data.message_id)
       } catch {}
     }
 
     ws.current.onerror = () => console.error('WebSocket error')
     ws.current.onclose = () => { setTimeout(connect, 3000) }
-  }, [channelId, onMessage, onTyping, onReactionUpdate])
+  }, [channelId, onMessage, onTyping, onReactionUpdate, onMessageEdited, onMessageDeleted])
 
   useEffect(() => {
     connect()

@@ -43,6 +43,11 @@ export const users = {
   list: () => api.get('/api/users'),
 }
 
+export const messages = {
+  edit: (id, content) => api.put(`/api/messages/${id}`, { content }),
+  delete: (id) => api.delete(`/api/messages/${id}`),
+}
+
 export const reactions = {
   toggle: (messageId, emoji) => api.post(`/api/messages/${messageId}/reactions/${emoji}`),
   list: (messageId) => api.get(`/api/messages/${messageId}/reactions`),

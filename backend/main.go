@@ -33,7 +33,7 @@ func main() {
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(authSvc, cfg.RegistrationEnabled)
-	channelHandler := handlers.NewChannelHandler(channelSvc)
+	channelHandler := handlers.NewChannelHandler(channelSvc, hub)
 	reactionHandler := handlers.NewReactionHandler(reactionSvc, hub)
 	adminHandler := handlers.NewAdminHandler(adminSvc)
 	profileHandler := handlers.NewProfileHandler(authSvc)
@@ -90,6 +90,8 @@ func main() {
 	api.HandleFunc("/upload", handlers.UploadHandler).Methods("POST")
 	api.HandleFunc("/messages/{messageId}/reactions/{emoji}", reactionHandler.Toggle).Methods("POST")
 	api.HandleFunc("/messages/{messageId}/reactions", reactionHandler.List).Methods("GET")
+	api.HandleFunc("/messages/{messageId}", channelHandler.EditMessage).Methods("PUT")
+	api.HandleFunc("/messages/{messageId}", channelHandler.DeleteMessage).Methods("DELETE")
 
 	// Admin routes (auth + admin role required)
 	admin := api.PathPrefix("/admin").Subrouter()

@@ -24,7 +24,9 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const searchTimer = useRef(null)
   const [uploading, setUploading] = useState(false)
   const [unread, setUnread] = useState(0)
+  const [showScrollBtn, setShowScrollBtn] = useState(false)
   const messagesEndRef = useRef(null)
+  const messagesContainerRef = useRef(null)
   const typingTimers = useRef({})
   const fileInputRef = useRef(null)
   const activeChannelRef = useRef(null)
@@ -84,7 +86,32 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     } catch {}
   }, [])
 
-  const { send, sendTyping } = useWebSocket(activeChannel?.id, handleNewMessage, handleTyping, loadReactions)
+  const handleMessageEdited = useCallback((messageId, content) => {
+    setMessages(prev => prev.map(m =>
+      m.id === messageId ? { ...m, content, edited_at: new Date().toISOString() } : m
+    ))
+  }, [])
+
+  const handleMessageDeleted = useCallback((messageId) => {
+    setMessages(prev => prev.filter(m => m.id !== messageId))
+  }, [])
+
+  const { send, sendTyping } = useWebSocket(
+    activeChannel?.id, handleNewMessage, handleTyping,
+    loadReactions, handleMessageEdited, handleMessageDeleted
+  )
+
+  // Scroll to bottom button
+  useEffect(() => {
+    const container = messagesContainerRef.current
+    if (!container) return
+    const onScroll = () => {
+      const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight
+      setShowScrollBtn(distFromBottom > 300)
+    }
+    container.addEventListener('scroll', onScroll)
+    return () => container.removeEventListener('scroll', onScroll)
+  }, [])
 
   useEffect(() => {
     channelsApi.list().then(({ data }) => {
@@ -383,20 +410,37 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
               </div>
             )}
 
-            <div className="messages-container">
+            <div className="messages-container" ref={messagesContainerRef}>
               {messages.map((msg, i) => {
                 const prev = messages[i - 1]
                 const isCompact = prev
                   && prev.user_id === msg.user_id
                   && (new Date(msg.created_at) - new Date(prev.created_at)) < 5 * 60 * 1000
+
+                // Separador de fecha
+                const msgDate = new Date(msg.created_at).toDateString()
+                const prevDate = prev ? new Date(prev.created_at).toDateString() : null
+                const showDateSep = msgDate !== prevDate
+
+                const today = new Date().toDateString()
+                const yesterday = new Date(Date.now() - 86400000).toDateString()
+                const dateLabel = msgDate === today ? 'Hoy'
+                  : msgDate === yesterday ? 'Ayer'
+                  : new Date(msg.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+
                 return (
-                  <Message
-                    key={msg.id}
-                    message={msg}
-                    currentUserId={user.id}
-                    onReactionUpdate={loadReactions}
-                    isCompact={isCompact}
-                  />
+                  <div key={msg.id}>
+                    {showDateSep && <div className="date-separator"><span>{dateLabel}</span></div>}
+                    <Message
+                      message={msg}
+                      currentUserId={user.id}
+                      currentUserRole={user.role}
+                      onReactionUpdate={loadReactions}
+                      onEdited={handleMessageEdited}
+                      onDeleted={handleMessageDeleted}
+                      isCompact={!showDateSep && isCompact}
+                    />
+                  </div>
                 )
               })}
               {typingText && (
@@ -404,6 +448,15 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
               )}
               <div ref={messagesEndRef} />
             </div>
+
+            {showScrollBtn && (
+              <button
+                className="scroll-to-bottom"
+                onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
+              >
+                ↓{unread > 0 ? ` ${unread}` : ''}
+              </button>
+            )}
 
             <form className="composer" onSubmit={sendMessage}>
               <input

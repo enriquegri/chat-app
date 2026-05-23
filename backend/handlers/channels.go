@@ -14,10 +14,11 @@ import (
 
 type ChannelHandler struct {
 	channelSvc *services.ChannelService
+	hub        *services.Hub
 }
 
-func NewChannelHandler(channelSvc *services.ChannelService) *ChannelHandler {
-	return &ChannelHandler{channelSvc: channelSvc}
+func NewChannelHandler(channelSvc *services.ChannelService, hub *services.Hub) *ChannelHandler {
+	return &ChannelHandler{channelSvc: channelSvc, hub: hub}
 }
 
 func (h *ChannelHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -162,6 +163,58 @@ func (h *ChannelHandler) UserList(w http.ResponseWriter, r *http.Request) {
 		users = []models.UserInfo{}
 	}
 	jsonResponse(w, users, http.StatusOK)
+}
+
+func (h *ChannelHandler) EditMessage(w http.ResponseWriter, r *http.Request) {
+	messageID, err := strconv.Atoi(mux.Vars(r)["messageId"])
+	if err != nil {
+		jsonError(w, "invalid message id", http.StatusBadRequest)
+		return
+	}
+	var body struct {
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Content == "" {
+		jsonError(w, "content required", http.StatusBadRequest)
+		return
+	}
+	userID := getUserID(r)
+	channelID, err := h.channelSvc.UpdateMessage(messageID, userID, body.Content)
+	if err != nil {
+		jsonError(w, "forbidden or not found", http.StatusForbidden)
+		return
+	}
+	// Broadcast message_edited a todos en el canal
+	out := models.WSMessage{Type: "message_edited", ChannelID: channelID, MessageID: messageID, Content: body.Content, Edited: true}
+	if data, err := json.Marshal(out); err == nil {
+		h.hub.Broadcast(data)
+	}
+	jsonResponse(w, map[string]string{"status": "ok"}, http.StatusOK)
+}
+
+func (h *ChannelHandler) DeleteMessage(w http.ResponseWriter, r *http.Request) {
+	messageID, err := strconv.Atoi(mux.Vars(r)["messageId"])
+	if err != nil {
+		jsonError(w, "invalid message id", http.StatusBadRequest)
+		return
+	}
+	userID := getUserID(r)
+	// Comprobar si es admin
+	raw := r.Context().Value(middleware.UserKey)
+	claims := *raw.(*jwt.MapClaims)
+	isAdmin := claims["role"] == "admin"
+
+	channelID, err := h.channelSvc.DeleteMessage(messageID, userID, isAdmin)
+	if err != nil {
+		jsonError(w, "forbidden or not found", http.StatusForbidden)
+		return
+	}
+	// Broadcast message_deleted
+	out := models.WSMessage{Type: "message_deleted", ChannelID: channelID, MessageID: messageID}
+	if data, err := json.Marshal(out); err == nil {
+		h.hub.Broadcast(data)
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func getUserID(r *http.Request) int {

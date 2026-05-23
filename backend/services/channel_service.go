@@ -187,7 +187,7 @@ func (s *ChannelService) JoinChannel(channelID, userID int) error {
 func (s *ChannelService) GetMessages(channelID, limit int) ([]models.Message, error) {
 	rows, err := s.db.Query(`
 		SELECT m.id, m.channel_id, m.user_id, u.username, u.avatar_color,
-		       m.content, COALESCE(m.file_url,''), COALESCE(m.file_type,''), m.created_at
+		       m.content, COALESCE(m.file_url,''), COALESCE(m.file_type,''), m.created_at, m.edited_at
 		FROM messages m
 		JOIN users u ON m.user_id = u.id
 		WHERE m.channel_id = ?
@@ -202,7 +202,7 @@ func (s *ChannelService) GetMessages(channelID, limit int) ([]models.Message, er
 	for rows.Next() {
 		var msg models.Message
 		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.AvatarColor,
-			&msg.Content, &msg.FileURL, &msg.FileType, &msg.CreatedAt); err != nil {
+			&msg.Content, &msg.FileURL, &msg.FileType, &msg.CreatedAt, &msg.EditedAt); err != nil {
 			return nil, err
 		}
 		msg.Content = s.crypto.Decrypt(msg.Content)
@@ -220,7 +220,7 @@ func (s *ChannelService) SearchMessages(channelID int, query string) ([]models.M
 	// Content is encrypted — fetch all messages and filter in-memory.
 	rows, err := s.db.Query(`
 		SELECT m.id, m.channel_id, m.user_id, u.username, u.avatar_color,
-		       m.content, COALESCE(m.file_url,''), COALESCE(m.file_type,''), m.created_at
+		       m.content, COALESCE(m.file_url,''), COALESCE(m.file_type,''), m.created_at, m.edited_at
 		FROM messages m
 		JOIN users u ON m.user_id = u.id
 		WHERE m.channel_id = ?
@@ -235,7 +235,7 @@ func (s *ChannelService) SearchMessages(channelID int, query string) ([]models.M
 	for rows.Next() {
 		var msg models.Message
 		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.AvatarColor,
-			&msg.Content, &msg.FileURL, &msg.FileType, &msg.CreatedAt); err != nil {
+			&msg.Content, &msg.FileURL, &msg.FileType, &msg.CreatedAt, &msg.EditedAt); err != nil {
 			return nil, err
 		}
 		msg.Content = s.crypto.Decrypt(msg.Content)
@@ -270,4 +270,50 @@ func (s *ChannelService) SaveMessage(msg *models.Message) error {
 	msg.ID = int(id)
 	s.db.QueryRow("SELECT avatar_color FROM users WHERE id = ?", msg.UserID).Scan(&msg.AvatarColor)
 	return nil
+}
+
+// UpdateMessage edita el contenido de un mensaje. Devuelve el channel_id del mensaje.
+func (s *ChannelService) UpdateMessage(messageID, userID int, content string) (int, error) {
+	encContent, err := s.crypto.Encrypt(content)
+	if err != nil {
+		return 0, err
+	}
+	res, err := s.db.Exec(
+		"UPDATE messages SET content = ?, edited_at = NOW() WHERE id = ? AND user_id = ?",
+		encContent, messageID, userID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		return 0, errors.New("not found or forbidden")
+	}
+	var channelID int
+	s.db.QueryRow("SELECT channel_id FROM messages WHERE id = ?", messageID).Scan(&channelID)
+	return channelID, nil
+}
+
+// DeleteMessage borra un mensaje. Los admin pueden borrar cualquiera.
+func (s *ChannelService) DeleteMessage(messageID, userID int, isAdmin bool) (int, error) {
+	var channelID int
+	if err := s.db.QueryRow("SELECT channel_id FROM messages WHERE id = ?", messageID).Scan(&channelID); err != nil {
+		return 0, errors.New("not found")
+	}
+	var query string
+	var args []interface{}
+	if isAdmin {
+		query = "DELETE FROM messages WHERE id = ?"
+		args = []interface{}{messageID}
+	} else {
+		query = "DELETE FROM messages WHERE id = ? AND user_id = ?"
+		args = []interface{}{messageID, userID}
+	}
+	res, err := s.db.Exec(query, args...)
+	if err != nil {
+		return 0, err
+	}
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		return 0, errors.New("not found or forbidden")
+	}
+	return channelID, nil
 }

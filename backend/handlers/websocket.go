@@ -14,11 +14,12 @@ type WSHandler struct {
 	hub            *services.Hub
 	authSvc        *services.AuthService
 	channelSvc     *services.ChannelService
+	pushSvc        *services.PushService
 	allowedOrigins map[string]bool
 }
 
-func NewWSHandler(hub *services.Hub, authSvc *services.AuthService, channelSvc *services.ChannelService, allowedOrigins map[string]bool) *WSHandler {
-	return &WSHandler{hub: hub, authSvc: authSvc, channelSvc: channelSvc, allowedOrigins: allowedOrigins}
+func NewWSHandler(hub *services.Hub, authSvc *services.AuthService, channelSvc *services.ChannelService, pushSvc *services.PushService, allowedOrigins map[string]bool) *WSHandler {
+	return &WSHandler{hub: hub, authSvc: authSvc, channelSvc: channelSvc, pushSvc: pushSvc, allowedOrigins: allowedOrigins}
 }
 
 func (h *WSHandler) upgrader() *websocket.Upgrader {
@@ -81,7 +82,7 @@ func (h *WSHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	h.hub.Register(client)
 
 	go client.WritePump()
-	client.ReadPump(h.hub, h.channelSvc)
+	client.ReadPump(h.hub, h.channelSvc, h.pushSvc)
 }
 
 // Helper para extraer claims del contexto en otros handlers

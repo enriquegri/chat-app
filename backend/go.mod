@@ -9,3 +9,5 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	golang.org/x/crypto v0.52.0
 )
+
+require github.com/SherClockHolmes/webpush-go v1.4.0 // indirect

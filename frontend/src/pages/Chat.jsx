@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { channels as channelsApi, reactions as reactionsApi, uploads, dm as dmApi, users as usersApi } from '../services/api'
 import { useWebSocket } from '../hooks/useWebSocket'
+import { usePushNotifications } from '../hooks/usePushNotifications'
 import Message from '../components/Message'
 import GlobalSearch from '../components/GlobalSearch'
 
@@ -53,11 +54,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     return () => window.removeEventListener('keydown', handler)
   }, [])
 
-  useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission()
-    }
-  }, [])
+  usePushNotifications()
 
   useEffect(() => {
     const onVisible = () => {

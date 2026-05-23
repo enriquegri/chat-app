@@ -306,6 +306,13 @@ func (s *ChannelService) SaveMessage(msg *models.Message) error {
 	return nil
 }
 
+// GetChannelName returns the name of a channel by ID.
+func (s *ChannelService) GetChannelName(channelID int) string {
+	var name string
+	s.db.QueryRow("SELECT name FROM channels WHERE id = ?", channelID).Scan(&name)
+	return name
+}
+
 // GlobalSearch busca mensajes en todos los canales a los que pertenece el usuario.
 // Como el contenido está cifrado se desencripta en memoria.
 func (s *ChannelService) GlobalSearch(userID int, query string) ([]models.Message, error) {

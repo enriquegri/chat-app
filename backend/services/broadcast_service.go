@@ -2,6 +2,7 @@ package services
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"sync"
 
@@ -150,7 +151,7 @@ func (c *Client) WritePump() {
 }
 
 // ReadPump lee mensajes del WebSocket y los envía al hub
-func (c *Client) ReadPump(hub *Hub, channelSvc *ChannelService) {
+func (c *Client) ReadPump(hub *Hub, channelSvc *ChannelService, pushSvc *PushService) {
 	defer func() {
 		hub.Unregister(c)
 		c.Conn.Close()
@@ -203,6 +204,22 @@ func (c *Client) ReadPump(hub *Hub, channelSvc *ChannelService) {
 			out := models.WSMessage{Type: "message", Message: msg}
 			data, _ := json.Marshal(out)
 			hub.Broadcast(data)
+
+			// Enviar push notification a suscriptores del canal (sin bloquear)
+			if pushSvc != nil {
+				chName := channelSvc.GetChannelName(msg.ChannelID)
+				if chName == "" {
+					chName = fmt.Sprintf("canal %d", msg.ChannelID)
+				}
+				preview := msg.Content
+				if preview == "" {
+					preview = "📎 archivo adjunto"
+				}
+				if len([]rune(preview)) > 120 {
+					preview = string([]rune(preview)[:120]) + "…"
+				}
+				go pushSvc.SendToChannelMembers(msg.ChannelID, msg.UserID, "#"+chName, msg.Username+": "+preview)
+			}
 		}
 	}
 }

@@ -66,6 +66,12 @@ export const uploads = {
   },
 }
 
+export const push = {
+  vapidKey: () => api.get('/api/push/vapid-key'),
+  subscribe: (data) => api.post('/api/push/subscribe', data),
+  unsubscribe: (endpoint) => api.delete('/api/push/subscribe', { data: { endpoint } }),
+}
+
 export const profile = {
   get: () => api.get('/api/profile'),
   update: (data) => api.put('/api/profile', data),

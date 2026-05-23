@@ -30,6 +30,7 @@ func main() {
 	channelSvc := services.NewChannelService(db.DB, crypto)
 	reactionSvc := services.NewReactionService(db.DB)
 	adminSvc := services.NewAdminService(db.DB, crypto)
+	pushSvc := services.NewPushService(db.DB, cfg.VAPIDPublicKey, cfg.VAPIDPrivateKey)
 	hub := services.NewHub()
 	go hub.Run()
 
@@ -39,7 +40,8 @@ func main() {
 	reactionHandler := handlers.NewReactionHandler(reactionSvc, hub)
 	adminHandler := handlers.NewAdminHandler(adminSvc)
 	profileHandler := handlers.NewProfileHandler(authSvc)
-	wsHandler := handlers.NewWSHandler(hub, authSvc, channelSvc, cfg.AllowedOrigins)
+	pushHandler := handlers.NewPushHandler(pushSvc)
+	wsHandler := handlers.NewWSHandler(hub, authSvc, channelSvc, pushSvc, cfg.AllowedOrigins)
 	authMiddleware := middleware.Auth(authSvc)
 	adminMiddleware := middleware.Admin
 
@@ -92,6 +94,9 @@ func main() {
 	api.HandleFunc("/upload", handlers.UploadHandler).Methods("POST")
 	api.HandleFunc("/search", channelHandler.GlobalSearch).Methods("GET")
 	api.HandleFunc("/link-preview", handlers.LinkPreviewHandler).Methods("GET")
+	api.HandleFunc("/push/vapid-key", pushHandler.VAPIDPublicKey).Methods("GET")
+	api.HandleFunc("/push/subscribe", pushHandler.Subscribe).Methods("POST")
+	api.HandleFunc("/push/subscribe", pushHandler.Unsubscribe).Methods("DELETE")
 	api.HandleFunc("/messages/{messageId}/reactions/{emoji}", reactionHandler.Toggle).Methods("POST")
 	api.HandleFunc("/messages/{messageId}/reactions", reactionHandler.List).Methods("GET")
 	api.HandleFunc("/messages/{messageId}", channelHandler.EditMessage).Methods("PUT")

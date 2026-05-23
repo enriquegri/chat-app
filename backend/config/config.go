@@ -18,6 +18,8 @@ type Config struct {
 	RegistrationEnabled bool
 	AllowedOrigins      map[string]bool
 	EncryptionKey       []byte
+	VAPIDPublicKey      string
+	VAPIDPrivateKey     string
 }
 
 func Load() *Config {
@@ -32,6 +34,8 @@ func Load() *Config {
 		RegistrationEnabled: getEnv("REGISTRATION_ENABLED", "false") == "true",
 		AllowedOrigins:      parseOrigins(getEnv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:4173")),
 		EncryptionKey:       parseHexKey(getEnv("ENCRYPTION_KEY", "")),
+		VAPIDPublicKey:      getEnv("VAPID_PUBLIC_KEY", ""),
+		VAPIDPrivateKey:     getEnv("VAPID_PRIVATE_KEY", ""),
 	}
 }
 

@@ -69,8 +69,9 @@ export default function Message({ message, currentUserId, currentUserRole, curre
 
   const isOwn = message.user_id === currentUserId
   const isAdmin = currentUserRole === 'admin'
-  const canDelete = isOwn || isAdmin
-  const canEdit = isOwn && !message.file_type
+  const isSending = !!message._temp
+  const canDelete = !isSending && (isOwn || isAdmin)
+  const canEdit = !isSending && isOwn && !message.file_type
   const isMentioned = currentUsername && message.content?.includes('@' + currentUsername)
 
   useEffect(() => {
@@ -151,7 +152,7 @@ export default function Message({ message, currentUserId, currentUserRole, curre
   const avatarColor = message.avatar_color || '#5b5ef4'
 
   return (
-    <div className={`msg-row ${isCompact ? 'compact' : ''}${isMentioned ? ' mentioned' : ''}`}>
+    <div className={`msg-row ${isCompact ? 'compact' : ''}${isMentioned ? ' mentioned' : ''}${isSending ? ' sending' : ''}`}>
       <div className="msg-avatar-col">
         <div className="msg-avatar" style={{ background: avatarColor }}>
           {message.username[0].toUpperCase()}
@@ -164,7 +165,10 @@ export default function Message({ message, currentUserId, currentUserRole, curre
           <div className="msg-meta">
             <span className="msg-author" style={{ color: avatarColor }}>{message.username}</span>
             <span className="msg-time">{time}</span>
-            {message.edited_at && <span className="msg-edited">(editado)</span>}
+            {isSending
+              ? <span className="msg-sending-badge">enviando…</span>
+              : message.edited_at && <span className="msg-edited">(editado)</span>
+            }
           </div>
         )}
 

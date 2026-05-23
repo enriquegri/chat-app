@@ -42,6 +42,10 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const typingTimers = useRef({})
   const fileInputRef = useRef(null)
   const activeChannelRef = useRef(null)
+  // Cache: channelId → Message[] (keeps reactions already loaded)
+  const messageCache = useRef(new Map())
+  // Hover-prefetch timers: channelId → timeoutId
+  const hoverTimers = useRef({})
 
   useEffect(() => { activeChannelRef.current = activeChannel }, [activeChannel])
   useEffect(() => { activeThreadRef.current = activeThread }, [activeThread])
@@ -75,19 +79,41 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     document.title = unread > 0 ? `(${unread}) ChatApp` : 'ChatApp'
   }, [unread])
 
+  // updateCache must be defined BEFORE callbacks that use it
+  const updateCache = useCallback((updater) => {
+    const chId = activeChannelRef.current?.id
+    if (!chId) return
+    messageCache.current.set(chId, updater(messageCache.current.get(chId) || []))
+  }, [])
+
   const handleNewMessage = useCallback((msg) => {
     if (msg.reply_to_id) {
       // Es una reply — no va al feed principal, actualiza el contador del padre
-      setMessages(prev => prev.map(m =>
-        m.id === msg.reply_to_id
-          ? { ...m, reply_count: (m.reply_count || 0) + 1 }
-          : m
-      ))
-      // Si el hilo de este padre está abierto, pasarla al Thread
+      setMessages(prev => {
+        const next = prev.map(m =>
+          m.id === msg.reply_to_id
+            ? { ...m, reply_count: (m.reply_count || 0) + 1 }
+            : m
+        )
+        updateCache(() => next)
+        return next
+      })
       setLastThreadReply(msg)
       return
     }
-    setMessages(prev => [...prev, { ...msg, reactions: [] }])
+
+    setMessages(prev => {
+      // Replace optimistic temp message if it's ours and content matches
+      const tempIdx = prev.findIndex(m =>
+        m._temp && m.content === msg.content && m.user_id === msg.user_id
+      )
+      const next = tempIdx !== -1
+        ? prev.map((m, i) => i === tempIdx ? { ...msg, reactions: [] } : m)
+        : [...prev, { ...msg, reactions: [] }]
+      updateCache(() => next)
+      return next
+    })
+
     if (msg.user_id === user.id) return
     if (document.hidden) {
       setUnread(prev => prev + 1)
@@ -101,7 +127,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
         n.onclick = () => { window.focus(); n.close() }
       }
     }
-  }, [user.id])
+  }, [user.id, updateCache])
 
   const handleTyping = useCallback((username) => {
     setTypingUsers(prev => prev.includes(username) ? prev : [...prev, username])
@@ -114,19 +140,31 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const loadReactions = useCallback(async (messageId) => {
     try {
       const { data } = await reactionsApi.list(messageId)
-      setMessages(prev => prev.map(m => m.id === messageId ? { ...m, reactions: data } : m))
+      setMessages(prev => {
+        const next = prev.map(m => m.id === messageId ? { ...m, reactions: data } : m)
+        updateCache(() => next)
+        return next
+      })
     } catch {}
-  }, [])
+  }, [updateCache])
 
   const handleMessageEdited = useCallback((messageId, content) => {
-    setMessages(prev => prev.map(m =>
-      m.id === messageId ? { ...m, content, edited_at: new Date().toISOString() } : m
-    ))
-  }, [])
+    setMessages(prev => {
+      const next = prev.map(m =>
+        m.id === messageId ? { ...m, content, edited_at: new Date().toISOString() } : m
+      )
+      updateCache(() => next)
+      return next
+    })
+  }, [updateCache])
 
   const handleMessageDeleted = useCallback((messageId) => {
-    setMessages(prev => prev.filter(m => m.id !== messageId))
-  }, [])
+    setMessages(prev => {
+      const next = prev.filter(m => m.id !== messageId)
+      updateCache(() => next)
+      return next
+    })
+  }, [updateCache])
 
   const handleOnlineUpdate = useCallback((count) => {
     setOnlineCount(count)
@@ -160,13 +198,25 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
 
   useEffect(() => {
     if (!activeChannel) return
-    setMessages([])
     setTypingUsers([])
     setUnread(0)
     setOnlineCount(0)
     setActiveThread(null)
+
+    // Show cached messages immediately (zero-latency switch)
+    const cached = messageCache.current.get(activeChannel.id)
+    setMessages(cached ?? [])
+
+    // Background refresh — always fetch fresh from server
     channelsApi.messages(activeChannel.id).then(({ data }) => {
-      setMessages(data.map(m => ({ ...m, reactions: [] })))
+      // Merge: keep temp messages that haven't been confirmed yet
+      setMessages(prev => {
+        const temps = prev.filter(m => m._temp)
+        const fresh = data.map(m => ({ ...m, reactions: [] }))
+        const merged = [...fresh, ...temps]
+        messageCache.current.set(activeChannel.id, fresh) // cache without temps
+        return merged
+      })
       data.forEach(m => loadReactions(m.id))
     })
   }, [activeChannel])
@@ -177,9 +227,33 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
 
   const sendMessage = async (e) => {
     e.preventDefault()
-    if (!input.trim()) return
-    send(input.trim(), '', '', 0)
+    const content = input.trim()
+    if (!content) return
+
+    // Optimistic: add temp message immediately for instant feedback
+    const tempId = `temp_${Date.now()}`
+    const tempMsg = {
+      id: tempId,
+      _temp: true,
+      content,
+      user_id: user.id,
+      username: user.username,
+      avatar_color: user.avatar_color || '#5b5ef4',
+      created_at: new Date().toISOString(),
+      reactions: [],
+      reply_count: 0,
+      channel_id: activeChannel?.id,
+    }
     setInput('')
+    setMessages(prev => [...prev, tempMsg])
+
+    try {
+      send(content, '', '', 0)
+    } catch {
+      // Network error — remove optimistic message and restore input
+      setMessages(prev => prev.filter(m => m.id !== tempId))
+      setInput(content)
+    }
   }
 
   const handleKeyDown = (e) => {
@@ -247,6 +321,27 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
       : [{ channel_id: ch.id, user_id: u.id, username: u.username, avatar_color: u.avatar_color }, ...prev]
     )
   }
+
+  // Prefetch messages on hover (200ms delay to avoid spurious loads)
+  const prefetchChannel = useCallback((channelId) => {
+    if (messageCache.current.has(channelId)) return // already cached
+    if (hoverTimers.current[channelId]) return       // already scheduled
+    hoverTimers.current[channelId] = setTimeout(async () => {
+      delete hoverTimers.current[channelId]
+      if (messageCache.current.has(channelId)) return
+      try {
+        const { data } = await channelsApi.messages(channelId)
+        messageCache.current.set(channelId, data.map(m => ({ ...m, reactions: [] })))
+      } catch {}
+    }, 200)
+  }, [])
+
+  const cancelPrefetch = useCallback((channelId) => {
+    if (hoverTimers.current[channelId]) {
+      clearTimeout(hoverTimers.current[channelId])
+      delete hoverTimers.current[channelId]
+    }
+  }, [])
 
   const channelHistoryPushed = useRef(false)
 
@@ -387,6 +482,8 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
                 key={ch.id}
                 className={`channel-item ${activeChannel?.id === ch.id && !activeDMUser ? 'active' : ''}`}
                 onClick={() => selectChannel(ch)}
+                onMouseEnter={() => prefetchChannel(ch.id)}
+                onMouseLeave={() => cancelPrefetch(ch.id)}
               >
                 {ch.is_private ? '🔒' : '#'} {ch.name}
               </li>
@@ -417,6 +514,8 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
                 key={conv.channel_id}
                 className={`channel-item ${activeChannel?.id === conv.channel_id && activeDMUser ? 'active' : ''}`}
                 onClick={() => selectDM(conv)}
+                onMouseEnter={() => prefetchChannel(conv.channel_id)}
+                onMouseLeave={() => cancelPrefetch(conv.channel_id)}
               >
                 <span className="user-avatar-sm" style={{ background: conv.avatar_color || '#5b5ef4' }}>
                   {conv.username[0].toUpperCase()}

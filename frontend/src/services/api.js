@@ -59,6 +59,7 @@ export const users = {
 export const messages = {
   edit: (id, content) => api.put(`/api/messages/${id}`, { content }),
   delete: (id) => api.delete(`/api/messages/${id}`),
+  thread: (id) => api.get(`/api/messages/${id}/thread`),
 }
 
 export const reactions = {

@@ -4,6 +4,7 @@ import { useWebSocket } from '../hooks/useWebSocket'
 import { usePushNotifications } from '../hooks/usePushNotifications'
 import Message from '../components/Message'
 import GlobalSearch from '../components/GlobalSearch'
+import Thread from '../components/Thread'
 
 const TYPING_TIMEOUT = 2000
 
@@ -31,8 +32,10 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const [mentionIndex, setMentionIndex] = useState(0)
   const [onlineCount, setOnlineCount] = useState(0)
   const [newChannelPrivate, setNewChannelPrivate] = useState(false)
-  const [replyingTo, setReplyingTo] = useState(null)
   const [showGlobalSearch, setShowGlobalSearch] = useState(false)
+  const [activeThread, setActiveThread] = useState(null)
+  const [lastThreadReply, setLastThreadReply] = useState(null)
+  const activeThreadRef = useRef(null)
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
   const composerInputRef = useRef(null)
@@ -41,6 +44,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const activeChannelRef = useRef(null)
 
   useEffect(() => { activeChannelRef.current = activeChannel }, [activeChannel])
+  useEffect(() => { activeThreadRef.current = activeThread }, [activeThread])
 
   // Ctrl+K / Cmd+K opens global search
   useEffect(() => {
@@ -72,6 +76,17 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   }, [unread])
 
   const handleNewMessage = useCallback((msg) => {
+    if (msg.reply_to_id) {
+      // Es una reply — no va al feed principal, actualiza el contador del padre
+      setMessages(prev => prev.map(m =>
+        m.id === msg.reply_to_id
+          ? { ...m, reply_count: (m.reply_count || 0) + 1 }
+          : m
+      ))
+      // Si el hilo de este padre está abierto, pasarla al Thread
+      setLastThreadReply(msg)
+      return
+    }
     setMessages(prev => [...prev, { ...msg, reactions: [] }])
     if (msg.user_id === user.id) return
     if (document.hidden) {
@@ -149,7 +164,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     setTypingUsers([])
     setUnread(0)
     setOnlineCount(0)
-    setReplyingTo(null)
+    setActiveThread(null)
     channelsApi.messages(activeChannel.id).then(({ data }) => {
       setMessages(data.map(m => ({ ...m, reactions: [] })))
       data.forEach(m => loadReactions(m.id))
@@ -163,9 +178,8 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const sendMessage = async (e) => {
     e.preventDefault()
     if (!input.trim()) return
-    send(input.trim(), '', '', replyingTo?.id || 0)
+    send(input.trim(), '', '', 0)
     setInput('')
-    setReplyingTo(null)
   }
 
   const handleKeyDown = (e) => {
@@ -528,8 +542,8 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
                       onReactionUpdate={loadReactions}
                       onEdited={handleMessageEdited}
                       onDeleted={handleMessageDeleted}
-                      onReply={setReplyingTo}
-                      isCompact={!showDateSep && isCompact && !msg.reply_to}
+                      onOpenThread={setActiveThread}
+                      isCompact={!showDateSep && isCompact && !msg.reply_to_id}
                     />
                   </div>
                 )
@@ -549,13 +563,6 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
               </button>
             )}
 
-            {replyingTo && (
-              <div className="reply-preview-bar">
-                <span className="reply-preview-label">↩️ Respondiendo a <strong>{replyingTo.username}</strong></span>
-                <span className="reply-preview-text">{replyingTo.content?.slice(0, 80) || '📎 attachment'}</span>
-                <button className="reply-preview-close" onClick={() => setReplyingTo(null)} title="Cancelar respuesta">✕</button>
-              </div>
-            )}
             <form className="composer" onSubmit={sendMessage}>
               <input
                 type="file"
@@ -612,6 +619,21 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
           <div className="no-channel">Select a channel or contact to start chatting</div>
         )}
       </main>
+
+      {activeThread && (
+        <Thread
+          parentMessage={activeThread}
+          currentUserId={user.id}
+          currentUserRole={user.role}
+          currentUsername={user.username}
+          onClose={() => setActiveThread(null)}
+          send={send}
+          newReply={lastThreadReply}
+          onReactionUpdate={loadReactions}
+          onEdited={handleMessageEdited}
+          onDeleted={handleMessageDeleted}
+        />
+      )}
     </div>
   )
 }

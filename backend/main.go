@@ -106,6 +106,7 @@ func main() {
 	api.HandleFunc("/push/subscribe", pushHandler.Unsubscribe).Methods("DELETE")
 	api.HandleFunc("/messages/{messageId}/reactions/{emoji}", reactionHandler.Toggle).Methods("POST")
 	api.HandleFunc("/messages/{messageId}/reactions", reactionHandler.List).Methods("GET")
+	api.HandleFunc("/messages/{messageId}/thread", channelHandler.GetThread).Methods("GET")
 	api.HandleFunc("/messages/{messageId}", channelHandler.EditMessage).Methods("PUT")
 	api.HandleFunc("/messages/{messageId}", channelHandler.DeleteMessage).Methods("DELETE")
 

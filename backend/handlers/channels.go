@@ -165,6 +165,23 @@ func (h *ChannelHandler) UserList(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, users, http.StatusOK)
 }
 
+func (h *ChannelHandler) GetThread(w http.ResponseWriter, r *http.Request) {
+	messageID, err := strconv.Atoi(mux.Vars(r)["messageId"])
+	if err != nil {
+		jsonError(w, "invalid message id", http.StatusBadRequest)
+		return
+	}
+	replies, err := h.channelSvc.GetThreadMessages(messageID)
+	if err != nil {
+		jsonError(w, "error fetching thread", http.StatusInternalServerError)
+		return
+	}
+	if replies == nil {
+		replies = []models.Message{}
+	}
+	jsonResponse(w, replies, http.StatusOK)
+}
+
 func (h *ChannelHandler) GlobalSearch(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query().Get("q")
 	if len(q) < 2 {

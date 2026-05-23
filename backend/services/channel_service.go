@@ -185,15 +185,16 @@ func (s *ChannelService) JoinChannel(channelID, userID int) error {
 }
 
 func (s *ChannelService) GetMessages(channelID, limit int) ([]models.Message, error) {
+	// Solo mensajes top-level (sin reply_to_id) + contador de respuestas
 	rows, err := s.db.Query(`
 		SELECT m.id, m.channel_id, m.user_id, u.username, u.avatar_color,
 		       m.content, COALESCE(m.file_url,''), COALESCE(m.file_type,''), m.created_at, m.edited_at,
-		       rm.id, COALESCE(ru.username,''), COALESCE(rm.content,'')
+		       COUNT(r.id) as reply_count
 		FROM messages m
 		JOIN users u ON m.user_id = u.id
-		LEFT JOIN messages rm ON m.reply_to_id = rm.id
-		LEFT JOIN users ru ON rm.user_id = ru.id
-		WHERE m.channel_id = ?
+		LEFT JOIN messages r ON r.reply_to_id = m.id
+		WHERE m.channel_id = ? AND m.reply_to_id IS NULL
+		GROUP BY m.id
 		ORDER BY m.created_at DESC
 		LIMIT ?`, channelID, limit)
 	if err != nil {
@@ -204,29 +205,48 @@ func (s *ChannelService) GetMessages(channelID, limit int) ([]models.Message, er
 	var messages []models.Message
 	for rows.Next() {
 		var msg models.Message
-		var replyID sql.NullInt64
-		var replyUsername, replyContent string
 		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.AvatarColor,
 			&msg.Content, &msg.FileURL, &msg.FileType, &msg.CreatedAt, &msg.EditedAt,
-			&replyID, &replyUsername, &replyContent); err != nil {
+			&msg.ReplyCount); err != nil {
 			return nil, err
 		}
 		msg.Content = s.crypto.Decrypt(msg.Content)
 		msg.FileURL = s.crypto.Decrypt(msg.FileURL)
-		if replyID.Valid {
-			id := int(replyID.Int64)
-			msg.ReplyToID = &id
-			msg.ReplyTo = &models.ReplySnippet{
-				ID:       id,
-				Username: replyUsername,
-				Content:  s.crypto.Decrypt(replyContent),
-			}
-		}
 		messages = append(messages, msg)
 	}
 
 	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
 		messages[i], messages[j] = messages[j], messages[i]
+	}
+	return messages, nil
+}
+
+// GetThreadMessages devuelve todas las respuestas directas a un mensaje.
+func (s *ChannelService) GetThreadMessages(parentID int) ([]models.Message, error) {
+	rows, err := s.db.Query(`
+		SELECT m.id, m.channel_id, m.user_id, u.username, u.avatar_color,
+		       m.content, COALESCE(m.file_url,''), COALESCE(m.file_type,''), m.created_at, m.edited_at
+		FROM messages m
+		JOIN users u ON m.user_id = u.id
+		WHERE m.reply_to_id = ?
+		ORDER BY m.created_at ASC`, parentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var messages []models.Message
+	for rows.Next() {
+		var msg models.Message
+		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.AvatarColor,
+			&msg.Content, &msg.FileURL, &msg.FileType, &msg.CreatedAt, &msg.EditedAt); err != nil {
+			return nil, err
+		}
+		msg.Content = s.crypto.Decrypt(msg.Content)
+		msg.FileURL = s.crypto.Decrypt(msg.FileURL)
+		replyToIDVal := parentID
+		msg.ReplyToID = &replyToIDVal
+		messages = append(messages, msg)
 	}
 	return messages, nil
 }
@@ -241,7 +261,7 @@ func (s *ChannelService) SearchMessages(channelID int, query string) ([]models.M
 		JOIN users u ON m.user_id = u.id
 		LEFT JOIN messages rm ON m.reply_to_id = rm.id
 		LEFT JOIN users ru ON rm.user_id = ru.id
-		WHERE m.channel_id = ?
+		WHERE m.channel_id = ? AND m.reply_to_id IS NULL
 		ORDER BY m.created_at DESC`, channelID)
 	if err != nil {
 		return nil, err
@@ -314,17 +334,21 @@ func (s *ChannelService) GetChannelName(channelID int) string {
 }
 
 // GlobalSearch busca mensajes en todos los canales a los que pertenece el usuario.
-// Como el contenido está cifrado se desencripta en memoria.
+// Para DMs muestra el username del otro usuario en vez de dm_X_X.
 func (s *ChannelService) GlobalSearch(userID int, query string) ([]models.Message, error) {
 	rows, err := s.db.Query(`
-		SELECT m.id, m.channel_id, c.name, m.user_id, u.username, u.avatar_color,
+		SELECT m.id, m.channel_id,
+		       CASE WHEN c.is_dm = 1 THEN COALESCE(dm_other.username, c.name) ELSE c.name END as display_name,
+		       m.user_id, u.username, u.avatar_color,
 		       m.content, COALESCE(m.file_url,''), COALESCE(m.file_type,''), m.created_at, m.edited_at
 		FROM messages m
 		JOIN users u ON m.user_id = u.id
 		JOIN channels c ON m.channel_id = c.id
 		JOIN channel_members cm ON c.id = cm.channel_id AND cm.user_id = ?
+		LEFT JOIN users dm_other ON c.is_dm = 1 AND dm_other.id =
+		    CASE WHEN c.dm_user1_id = ? THEN c.dm_user2_id ELSE c.dm_user1_id END
 		ORDER BY m.created_at DESC
-		LIMIT 2000`, userID)
+		LIMIT 2000`, userID, userID)
 	if err != nil {
 		return nil, err
 	}

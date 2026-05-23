@@ -55,7 +55,7 @@ function renderText(text, currentUsername) {
   })
 }
 
-export default function Message({ message, currentUserId, currentUserRole, currentUsername, onReactionUpdate, isCompact, onEdited, onDeleted, onReply }) {
+export default function Message({ message, currentUserId, currentUserRole, currentUsername, onReactionUpdate, isCompact, onEdited, onDeleted, onOpenThread, isThreadReply }) {
   const [showPicker, setShowPicker] = useState(false)
   const [pickerBelow, setPickerBelow] = useState(false)
   const [pickerSearch, setPickerSearch] = useState('')
@@ -119,7 +119,7 @@ export default function Message({ message, currentUserId, currentUserRole, curre
   }
 
   const handleEdit = () => { setShowMenu(false); setEditText(message.content); setEditing(true) }
-  const handleReply = () => { setShowMenu(false); if (onReply) onReply(message) }
+  const handleOpenThread = () => { setShowMenu(false); if (onOpenThread) onOpenThread(message) }
 
   const handleEditSubmit = async (e) => {
     e.preventDefault()
@@ -169,14 +169,6 @@ export default function Message({ message, currentUserId, currentUserRole, curre
         )}
 
         <div className="msg-content-wrap">
-          {message.reply_to && (
-            <div className="reply-quote">
-              <span className="reply-quote-author">{message.reply_to.username}</span>
-              <span className="reply-quote-text">
-                {message.reply_to.content ? message.reply_to.content.slice(0, 100) : '📎 attachment'}
-              </span>
-            </div>
-          )}
           {message.file_type === 'image' && (
             <img src={message.file_url} alt="attachment" className="message-img" />
           )}
@@ -207,6 +199,13 @@ export default function Message({ message, currentUserId, currentUserRole, curre
             ))}
           </div>
         )}
+
+        {/* Contador de replies — solo en feed principal, no dentro del hilo */}
+        {!isThreadReply && message.reply_count > 0 && onOpenThread && (
+          <button className="thread-count-btn" onClick={() => onOpenThread(message)}>
+            💬 {message.reply_count} {message.reply_count === 1 ? 'respuesta' : 'respuestas'}
+          </button>
+        )}
       </div>
 
       <div className={`msg-actions${showPicker || showMenu ? ' picker-open' : ''}`} ref={pickerRef}>
@@ -217,7 +216,9 @@ export default function Message({ message, currentUserId, currentUserRole, curre
             <button className="msg-menu-trigger" onClick={() => setShowMenu(p => !p)} title="More">⋯</button>
             {showMenu && (
               <div className="msg-menu">
-                <button onClick={handleReply}>↩️ Responder</button>
+                {!isThreadReply && onOpenThread && (
+                  <button onClick={handleOpenThread}>💬 Responder en hilo</button>
+                )}
                 {canEdit && <button onClick={handleEdit}>✏️ Editar</button>}
                 {canDelete && <button className="danger" onClick={handleDelete}>🗑️ Borrar</button>}
               </div>

@@ -36,6 +36,7 @@ func main() {
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(authSvc, cfg.RegistrationEnabled)
+	twoFAHandler := handlers.NewTwoFAHandler(authSvc)
 	channelHandler := handlers.NewChannelHandler(channelSvc, hub)
 	reactionHandler := handlers.NewReactionHandler(reactionSvc, hub)
 	adminHandler := handlers.NewAdminHandler(adminSvc)
@@ -72,6 +73,7 @@ func main() {
 	}).Methods("GET")
 	r.HandleFunc("/auth/register", authHandler.Register).Methods("POST")
 	r.Handle("/auth/login", loginLimiter.Limit(http.HandlerFunc(authHandler.Login))).Methods("POST")
+	r.HandleFunc("/auth/2fa/verify", twoFAHandler.Verify).Methods("POST")
 
 	// WebSocket (auth via query param)
 	r.HandleFunc("/ws/{channelId}", wsHandler.Handle)
@@ -92,6 +94,10 @@ func main() {
 	api.HandleFunc("/dm", channelHandler.DMList).Methods("GET")
 	api.HandleFunc("/dm/{userId}", channelHandler.DMOpen).Methods("POST")
 	api.HandleFunc("/upload", handlers.UploadHandler).Methods("POST")
+	api.HandleFunc("/2fa/status", twoFAHandler.Status).Methods("GET")
+	api.HandleFunc("/2fa/setup", twoFAHandler.Setup).Methods("GET")
+	api.HandleFunc("/2fa/enable", twoFAHandler.Enable).Methods("POST")
+	api.HandleFunc("/2fa/disable", twoFAHandler.Disable).Methods("POST")
 	api.HandleFunc("/search", channelHandler.GlobalSearch).Methods("GET")
 	api.HandleFunc("/link-preview", handlers.LinkPreviewHandler).Methods("GET")
 	api.HandleFunc("/push/vapid-key", pushHandler.VAPIDPublicKey).Methods("GET")

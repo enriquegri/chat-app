@@ -9,7 +9,7 @@ import Profile from './pages/Profile'
 import './App.css'
 
 function App() {
-  const { user, loading, login, register, logout, updateUser } = useAuth()
+  const { user, loading, login, register, logout, updateUser, complete2FA } = useAuth()
   const [view, setView] = useState('login')
   const [page, setPage] = useState('chat') // 'chat' | 'admin' | 'profile'
   const [registrationEnabled, setRegistrationEnabled] = useState(false)
@@ -86,6 +86,7 @@ function App() {
   return (
     <Login
       onLogin={login}
+      on2FA={complete2FA}
       onSwitchToRegister={registrationEnabled ? () => setView('register') : null}
     />
   )

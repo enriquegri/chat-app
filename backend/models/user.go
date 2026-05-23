@@ -32,8 +32,10 @@ type LoginRequest struct {
 }
 
 type AuthResponse struct {
-	Token string `json:"token"`
-	User  User   `json:"user"`
+	Token       string `json:"token,omitempty"`
+	User        User   `json:"user,omitempty"`
+	Requires2FA bool   `json:"requires_2fa,omitempty"`
+	TempToken   string `json:"temp_token,omitempty"`
 }
 
 type UpdateProfileRequest struct {

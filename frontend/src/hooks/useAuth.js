@@ -29,6 +29,16 @@ export function useAuth() {
 
   const login = async (email, password) => {
     const { data } = await auth.login({ email, password })
+    // If 2FA is required, return without logging in yet
+    if (data.requires_2fa) return data
+    localStorage.setItem('token', data.token)
+    localStorage.setItem('user', JSON.stringify(data.user))
+    setUser(data.user)
+    return data
+  }
+
+  const complete2FA = async (tempToken, code) => {
+    const { data } = await auth.verify2fa({ temp_token: tempToken, code })
     localStorage.setItem('token', data.token)
     localStorage.setItem('user', JSON.stringify(data.user))
     setUser(data.user)
@@ -54,5 +64,5 @@ export function useAuth() {
     setUser(updatedUser)
   }
 
-  return { user, loading, login, register, logout, updateUser }
+  return { user, loading, login, register, logout, updateUser, complete2FA }
 }

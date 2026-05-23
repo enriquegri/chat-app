@@ -28,6 +28,12 @@ func Auth(authSvc *services.AuthService) func(http.Handler) http.Handler {
 				return
 			}
 
+			// Rechazar tokens de 2FA pendiente — solo son válidos para /auth/2fa/verify
+			if (*claims)["type"] == "2fa_pending" {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+
 			ctx := context.WithValue(r.Context(), UserKey, claims)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})

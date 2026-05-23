@@ -24,6 +24,14 @@ export const auth = {
   registrationStatus: () => api.get('/registration-status'),
   register: (data) => api.post('/auth/register', data),
   login: (data) => api.post('/auth/login', data),
+  verify2fa: (data) => api.post('/auth/2fa/verify', data),
+}
+
+export const twofa = {
+  status: () => api.get('/api/2fa/status'),
+  setup: () => api.get('/api/2fa/setup'),
+  enable: (data) => api.post('/api/2fa/enable', data),
+  disable: (data) => api.post('/api/2fa/disable', data),
 }
 
 export const channels = {

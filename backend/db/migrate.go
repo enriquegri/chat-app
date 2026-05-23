@@ -15,6 +15,8 @@ func RunMigrations(database *sql.DB) {
 		{"add_edited_at", `ALTER TABLE messages ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP NULL DEFAULT NULL`},
 		{"add_is_private", `ALTER TABLE channels ADD COLUMN IF NOT EXISTS is_private BOOLEAN NOT NULL DEFAULT FALSE`},
 		{"add_reply_to_id", `ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to_id INT NULL`},
+		{"add_totp_secret", `ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret VARCHAR(512) NULL`},
+		{"add_totp_enabled", `ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN NOT NULL DEFAULT FALSE`},
 		{"create_push_subscriptions", `
 			CREATE TABLE IF NOT EXISTS push_subscriptions (
 				id INT AUTO_INCREMENT PRIMARY KEY,

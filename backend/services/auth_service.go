@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/pquerna/otp/totp"
 	"github.com/yourusername/chat-app/models"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -70,12 +71,13 @@ func (s *AuthService) Register(req models.RegisterRequest) (*models.AuthResponse
 func (s *AuthService) Login(req models.LoginRequest) (*models.AuthResponse, error) {
 	var user models.User
 	var hash string
+	var totpEnabled bool
 
 	emailHash := s.crypto.HMAC(req.Email)
 	err := s.db.QueryRow(
-		"SELECT id, username, email, role, bio, avatar_color, password_hash, created_at FROM users WHERE email_hash = ?",
+		"SELECT id, username, email, role, bio, avatar_color, password_hash, created_at, COALESCE(totp_enabled, FALSE) FROM users WHERE email_hash = ?",
 		emailHash,
-	).Scan(&user.ID, &user.Username, &user.Email, &user.Role, &user.Bio, &user.AvatarColor, &hash, &user.CreatedAt)
+	).Scan(&user.ID, &user.Username, &user.Email, &user.Role, &user.Bio, &user.AvatarColor, &hash, &user.CreatedAt, &totpEnabled)
 
 	if err == sql.ErrNoRows {
 		return nil, errors.New("invalid credentials")
@@ -89,6 +91,15 @@ func (s *AuthService) Login(req models.LoginRequest) (*models.AuthResponse, erro
 
 	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(req.Password)); err != nil {
 		return nil, errors.New("invalid credentials")
+	}
+
+	// Si el usuario tiene 2FA habilitado, devolver un token temporal
+	if totpEnabled {
+		tempToken, err := s.generateTempToken(user.ID)
+		if err != nil {
+			return nil, err
+		}
+		return &models.AuthResponse{Requires2FA: true, TempToken: tempToken}, nil
 	}
 
 	token, err := s.generateToken(user)
@@ -184,4 +195,102 @@ func (s *AuthService) generateToken(user models.User) (string, error) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(s.jwtSecret)
+}
+
+func (s *AuthService) generateTempToken(userID int) (string, error) {
+	claims := jwt.MapClaims{
+		"user_id": userID,
+		"type":    "2fa_pending",
+		"exp":     time.Now().Add(5 * time.Minute).Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(s.jwtSecret)
+}
+
+// ── TOTP / 2FA ──────────────────────────────────────────────────────────────
+
+// GenerateTOTPSetup crea un secreto TOTP para el usuario y devuelve el secreto
+// y la URL otpauth:// para generar el QR code en el frontend.
+func (s *AuthService) GenerateTOTPSetup(username string) (secret, otpauthURL string, err error) {
+	key, err := totp.Generate(totp.GenerateOpts{
+		Issuer:      "ChatApp",
+		AccountName: username,
+	})
+	if err != nil {
+		return "", "", err
+	}
+	return key.Secret(), key.URL(), nil
+}
+
+// EnableTOTP verifica el código y habilita 2FA para el usuario.
+func (s *AuthService) EnableTOTP(userID int, secret, code string) error {
+	if !totp.Validate(code, secret) {
+		return errors.New("invalid code — check your authenticator app clock")
+	}
+	encSecret, err := s.crypto.Encrypt(secret)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.Exec(
+		"UPDATE users SET totp_secret = ?, totp_enabled = TRUE WHERE id = ?",
+		encSecret, userID,
+	)
+	return err
+}
+
+// DisableTOTP deshabilita 2FA tras verificar el código actual.
+func (s *AuthService) DisableTOTP(userID int, code string) error {
+	var encSecret string
+	if err := s.db.QueryRow("SELECT COALESCE(totp_secret,'') FROM users WHERE id = ?", userID).Scan(&encSecret); err != nil {
+		return errors.New("user not found")
+	}
+	secret := s.crypto.Decrypt(encSecret)
+	if !totp.Validate(code, secret) {
+		return errors.New("invalid code")
+	}
+	_, err := s.db.Exec("UPDATE users SET totp_secret = NULL, totp_enabled = FALSE WHERE id = ?", userID)
+	return err
+}
+
+// Verify2FA valida el token temporal + el código TOTP y devuelve el JWT completo.
+func (s *AuthService) Verify2FA(tempTokenStr, code string) (*models.AuthResponse, error) {
+	claims, err := s.ValidateToken(tempTokenStr)
+	if err != nil {
+		return nil, errors.New("invalid or expired token")
+	}
+	if (*claims)["type"] != "2fa_pending" {
+		return nil, errors.New("invalid token type")
+	}
+
+	userID := int((*claims)["user_id"].(float64))
+
+	var encSecret string
+	var user models.User
+	err = s.db.QueryRow(
+		"SELECT id, username, email, role, bio, avatar_color, COALESCE(totp_secret,'') FROM users WHERE id = ?",
+		userID,
+	).Scan(&user.ID, &user.Username, &user.Email, &user.Role, &user.Bio, &user.AvatarColor, &encSecret)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+	user.Email = s.crypto.Decrypt(user.Email)
+	user.Bio = s.crypto.Decrypt(user.Bio)
+
+	secret := s.crypto.Decrypt(encSecret)
+	if !totp.Validate(code, secret) {
+		return nil, errors.New("invalid code")
+	}
+
+	token, err := s.generateToken(user)
+	if err != nil {
+		return nil, err
+	}
+	return &models.AuthResponse{Token: token, User: user}, nil
+}
+
+// TOTPEnabled devuelve si el usuario tiene 2FA habilitado.
+func (s *AuthService) TOTPEnabled(userID int) bool {
+	var enabled bool
+	s.db.QueryRow("SELECT COALESCE(totp_enabled, FALSE) FROM users WHERE id = ?", userID).Scan(&enabled)
+	return enabled
 }

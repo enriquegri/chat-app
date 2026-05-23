@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { profile as profileApi } from '../services/api'
+import TwoFASettings from '../components/TwoFASettings'
 
 const AVATAR_COLORS = [
   '#5865f2', '#57f287', '#fee75c', '#eb459e', '#ed4245',
@@ -144,6 +145,10 @@ export default function Profile({ user, onBack, onUpdate }) {
             {pwSaving ? 'Saving...' : 'Change Password'}
           </button>
         </form>
+
+        <div className="profile-form">
+          <TwoFASettings />
+        </div>
       </div>
     </div>
   )

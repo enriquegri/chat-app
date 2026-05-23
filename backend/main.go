@@ -26,6 +26,7 @@ func main() {
 	authSvc := services.NewAuthService(db.DB, cfg.JWTSecret)
 	channelSvc := services.NewChannelService(db.DB)
 	reactionSvc := services.NewReactionService(db.DB)
+	adminSvc := services.NewAdminService(db.DB)
 	hub := services.NewHub()
 	go hub.Run()
 
@@ -33,8 +34,10 @@ func main() {
 	authHandler := handlers.NewAuthHandler(authSvc)
 	channelHandler := handlers.NewChannelHandler(channelSvc)
 	reactionHandler := handlers.NewReactionHandler(reactionSvc)
+	adminHandler := handlers.NewAdminHandler(adminSvc)
 	wsHandler := handlers.NewWSHandler(hub, authSvc, channelSvc)
 	authMiddleware := middleware.Auth(authSvc)
+	adminMiddleware := middleware.Admin
 
 	r := mux.NewRouter()
 	r.Use(corsMiddleware)
@@ -61,6 +64,15 @@ func main() {
 	api.HandleFunc("/upload", handlers.UploadHandler).Methods("POST")
 	api.HandleFunc("/messages/{messageId}/reactions/{emoji}", reactionHandler.Toggle).Methods("POST")
 	api.HandleFunc("/messages/{messageId}/reactions", reactionHandler.List).Methods("GET")
+
+	// Admin routes (auth + admin role required)
+	admin := api.PathPrefix("/admin").Subrouter()
+	admin.Use(adminMiddleware)
+	admin.HandleFunc("/users", adminHandler.ListUsers).Methods("GET")
+	admin.HandleFunc("/users/{id}", adminHandler.DeleteUser).Methods("DELETE")
+	admin.HandleFunc("/users/{id}/role", adminHandler.SetRole).Methods("PUT")
+	admin.HandleFunc("/channels", adminHandler.ListChannels).Methods("GET")
+	admin.HandleFunc("/channels/{id}", adminHandler.DeleteChannel).Methods("DELETE")
 
 	log.Printf("Server running on :%s", cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, r))

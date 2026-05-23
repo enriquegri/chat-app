@@ -9,7 +9,16 @@ export function useAuth() {
     const token = localStorage.getItem('token')
     const storedUser = localStorage.getItem('user')
     if (token && storedUser) {
-      setUser(JSON.parse(storedUser))
+      const u = JSON.parse(storedUser)
+      if (!u.role) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]))
+          u.role = payload.role || 'user'
+        } catch {
+          u.role = 'user'
+        }
+      }
+      setUser(u)
     }
     setLoading(false)
   }, [])

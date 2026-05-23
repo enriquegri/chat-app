@@ -33,4 +33,12 @@ export const uploads = {
   },
 }
 
+export const admin = {
+  listUsers: () => api.get('/api/admin/users'),
+  deleteUser: (id) => api.delete(`/api/admin/users/${id}`),
+  setRole: (id, role) => api.put(`/api/admin/users/${id}/role`, { role }),
+  listChannels: () => api.get('/api/admin/channels'),
+  deleteChannel: (id) => api.delete(`/api/admin/channels/${id}`),
+}
+
 export default api

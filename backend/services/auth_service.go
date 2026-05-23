@@ -49,6 +49,7 @@ func (s *AuthService) Register(req models.RegisterRequest) (*models.AuthResponse
 		ID:       int(id),
 		Username: req.Username,
 		Email:    req.Email,
+		Role:     "user",
 	}
 
 	token, err := s.generateToken(user)
@@ -64,9 +65,9 @@ func (s *AuthService) Login(req models.LoginRequest) (*models.AuthResponse, erro
 	var hash string
 
 	err := s.db.QueryRow(
-		"SELECT id, username, email, password_hash, created_at FROM users WHERE email = ?",
+		"SELECT id, username, email, role, password_hash, created_at FROM users WHERE email = ?",
 		req.Email,
-	).Scan(&user.ID, &user.Username, &user.Email, &hash, &user.CreatedAt)
+	).Scan(&user.ID, &user.Username, &user.Email, &user.Role, &hash, &user.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, errors.New("invalid credentials")
@@ -106,11 +107,23 @@ func (s *AuthService) ValidateToken(tokenStr string) (*jwt.MapClaims, error) {
 	return &claims, nil
 }
 
+func (s *AuthService) GetUserByID(id int) (*models.User, error) {
+	var user models.User
+	err := s.db.QueryRow(
+		"SELECT id, username, email, role, created_at FROM users WHERE id = ?", id,
+	).Scan(&user.ID, &user.Username, &user.Email, &user.Role, &user.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
 func (s *AuthService) generateToken(user models.User) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id":  user.ID,
 		"username": user.Username,
 		"email":    user.Email,
+		"role":     user.Role,
 		"exp":      time.Now().Add(24 * time.Hour).Unix(),
 	}
 

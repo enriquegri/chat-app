@@ -5,7 +5,7 @@ import Message from '../components/Message'
 
 const TYPING_TIMEOUT = 2000
 
-export default function Chat({ user, onLogout }) {
+export default function Chat({ user, onLogout, onOpenAdmin }) {
   const [channelList, setChannelList] = useState([])
   const [activeChannel, setActiveChannel] = useState(null)
   const [messages, setMessages] = useState([])
@@ -115,6 +115,9 @@ export default function Chat({ user, onLogout }) {
           <span className="user-avatar">{user.username[0].toUpperCase()}</span>
           <span>{user.username}</span>
         </div>
+        {onOpenAdmin && (
+          <button className="admin-link" onClick={onOpenAdmin}>⚙ Admin Panel</button>
+        )}
         <div className="channels-section">
           <div className="channels-header">
             <span>Channels</span>

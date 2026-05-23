@@ -54,7 +54,7 @@ function renderText(text, currentUsername) {
   })
 }
 
-export default function Message({ message, currentUserId, currentUserRole, currentUsername, onReactionUpdate, isCompact, onEdited, onDeleted }) {
+export default function Message({ message, currentUserId, currentUserRole, currentUsername, onReactionUpdate, isCompact, onEdited, onDeleted, onReply }) {
   const [showPicker, setShowPicker] = useState(false)
   const [pickerBelow, setPickerBelow] = useState(false)
   const [pickerSearch, setPickerSearch] = useState('')
@@ -118,6 +118,7 @@ export default function Message({ message, currentUserId, currentUserRole, curre
   }
 
   const handleEdit = () => { setShowMenu(false); setEditText(message.content); setEditing(true) }
+  const handleReply = () => { setShowMenu(false); if (onReply) onReply(message) }
 
   const handleEditSubmit = async (e) => {
     e.preventDefault()
@@ -167,6 +168,14 @@ export default function Message({ message, currentUserId, currentUserRole, curre
         )}
 
         <div className="msg-content-wrap">
+          {message.reply_to && (
+            <div className="reply-quote">
+              <span className="reply-quote-author">{message.reply_to.username}</span>
+              <span className="reply-quote-text">
+                {message.reply_to.content ? message.reply_to.content.slice(0, 100) : '📎 attachment'}
+              </span>
+            </div>
+          )}
           {message.file_type === 'image' && (
             <img src={message.file_url} alt="attachment" className="message-img" />
           )}
@@ -206,6 +215,7 @@ export default function Message({ message, currentUserId, currentUserRole, curre
             <button className="msg-menu-trigger" onClick={() => setShowMenu(p => !p)} title="More">⋯</button>
             {showMenu && (
               <div className="msg-menu">
+                <button onClick={handleReply}>↩️ Responder</button>
                 {canEdit && <button onClick={handleEdit}>✏️ Editar</button>}
                 {canDelete && <button className="danger" onClick={handleDelete}>🗑️ Borrar</button>}
               </div>

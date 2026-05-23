@@ -2,17 +2,26 @@ package models
 
 import "time"
 
+// ReplySnippet es el extracto del mensaje al que se responde
+type ReplySnippet struct {
+	ID       int    `json:"id"`
+	Username string `json:"username"`
+	Content  string `json:"content"`
+}
+
 type Message struct {
-	ID          int        `json:"id"`
-	ChannelID   int        `json:"channel_id"`
-	UserID      int        `json:"user_id"`
-	Username    string     `json:"username"`
-	AvatarColor string     `json:"avatar_color"`
-	Content     string     `json:"content"`
-	FileURL     string     `json:"file_url,omitempty"`
-	FileType    string     `json:"file_type,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
-	EditedAt    *time.Time `json:"edited_at,omitempty"`
+	ID          int           `json:"id"`
+	ChannelID   int           `json:"channel_id"`
+	UserID      int           `json:"user_id"`
+	Username    string        `json:"username"`
+	AvatarColor string        `json:"avatar_color"`
+	Content     string        `json:"content"`
+	FileURL     string        `json:"file_url,omitempty"`
+	FileType    string        `json:"file_type,omitempty"`
+	CreatedAt   time.Time     `json:"created_at"`
+	EditedAt    *time.Time    `json:"edited_at,omitempty"`
+	ReplyToID   *int          `json:"reply_to_id,omitempty"`
+	ReplyTo     *ReplySnippet `json:"reply_to,omitempty"`
 }
 
 // WSMessage es el formato de mensaje enviado por WebSocket
@@ -26,6 +35,7 @@ type WSMessage struct {
 	FileURL   string  `json:"file_url,omitempty"`
 	FileType  string  `json:"file_type,omitempty"`
 	Edited    bool    `json:"edited,omitempty"`
+	ReplyToID int     `json:"reply_to_id,omitempty"`
 }
 
 type Reaction struct {

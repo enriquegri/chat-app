@@ -22,6 +22,8 @@ func main() {
 	defer db.DB.Close()
 	log.Println("Connected to database")
 
+	db.RunMigrations(db.DB)
+
 	// Services
 	crypto := services.NewCrypto(cfg.EncryptionKey)
 	authSvc := services.NewAuthService(db.DB, cfg.JWTSecret, crypto)

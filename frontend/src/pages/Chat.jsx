@@ -29,6 +29,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const [mentionIndex, setMentionIndex] = useState(0)
   const [onlineCount, setOnlineCount] = useState(0)
   const [newChannelPrivate, setNewChannelPrivate] = useState(false)
+  const [replyingTo, setReplyingTo] = useState(null)
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
   const composerInputRef = useRef(null)
@@ -137,6 +138,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     setTypingUsers([])
     setUnread(0)
     setOnlineCount(0)
+    setReplyingTo(null)
     channelsApi.messages(activeChannel.id).then(({ data }) => {
       setMessages(data.map(m => ({ ...m, reactions: [] })))
       data.forEach(m => loadReactions(m.id))
@@ -150,8 +152,9 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const sendMessage = async (e) => {
     e.preventDefault()
     if (!input.trim()) return
-    send(input.trim())
+    send(input.trim(), '', '', replyingTo?.id || 0)
     setInput('')
+    setReplyingTo(null)
   }
 
   const handleKeyDown = (e) => {
@@ -489,7 +492,8 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
                       onReactionUpdate={loadReactions}
                       onEdited={handleMessageEdited}
                       onDeleted={handleMessageDeleted}
-                      isCompact={!showDateSep && isCompact}
+                      onReply={setReplyingTo}
+                      isCompact={!showDateSep && isCompact && !msg.reply_to}
                     />
                   </div>
                 )
@@ -509,6 +513,13 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
               </button>
             )}
 
+            {replyingTo && (
+              <div className="reply-preview-bar">
+                <span className="reply-preview-label">↩️ Respondiendo a <strong>{replyingTo.username}</strong></span>
+                <span className="reply-preview-text">{replyingTo.content?.slice(0, 80) || '📎 attachment'}</span>
+                <button className="reply-preview-close" onClick={() => setReplyingTo(null)} title="Cancelar respuesta">✕</button>
+              </div>
+            )}
             <form className="composer" onSubmit={sendMessage}>
               <input
                 type="file"

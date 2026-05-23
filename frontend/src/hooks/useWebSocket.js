@@ -40,9 +40,9 @@ export function useWebSocket(channelId, onMessage, onTyping, onReactionUpdate, o
     }
   }, [connect])
 
-  const send = useCallback((content, fileUrl = '', fileType = '') => {
+  const send = useCallback((content, fileUrl = '', fileType = '', replyToId = 0) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
-      ws.current.send(JSON.stringify({ type: 'message', content, file_url: fileUrl, file_type: fileType }))
+      ws.current.send(JSON.stringify({ type: 'message', content, file_url: fileUrl, file_type: fileType, reply_to_id: replyToId }))
     }
   }, [])
 

@@ -188,9 +188,17 @@ func (c *Client) ReadPump(hub *Hub, channelSvc *ChannelService) {
 				FileURL:   wsMsg.FileURL,
 				FileType:  wsMsg.FileType,
 			}
+			if wsMsg.ReplyToID != 0 {
+				id := wsMsg.ReplyToID
+				msg.ReplyToID = &id
+			}
 			if err := channelSvc.SaveMessage(&msg); err != nil {
 				log.Printf("Error saving message: %v", err)
 				continue
+			}
+			// Si es una respuesta, incluir el snippet del mensaje original
+			if msg.ReplyToID != nil {
+				msg.ReplyTo = channelSvc.GetReplySnippet(*msg.ReplyToID)
 			}
 			out := models.WSMessage{Type: "message", Message: msg}
 			data, _ := json.Marshal(out)

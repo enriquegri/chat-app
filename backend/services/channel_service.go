@@ -187,9 +187,12 @@ func (s *ChannelService) JoinChannel(channelID, userID int) error {
 func (s *ChannelService) GetMessages(channelID, limit int) ([]models.Message, error) {
 	rows, err := s.db.Query(`
 		SELECT m.id, m.channel_id, m.user_id, u.username, u.avatar_color,
-		       m.content, COALESCE(m.file_url,''), COALESCE(m.file_type,''), m.created_at, m.edited_at
+		       m.content, COALESCE(m.file_url,''), COALESCE(m.file_type,''), m.created_at, m.edited_at,
+		       rm.id, COALESCE(ru.username,''), COALESCE(rm.content,'')
 		FROM messages m
 		JOIN users u ON m.user_id = u.id
+		LEFT JOIN messages rm ON m.reply_to_id = rm.id
+		LEFT JOIN users ru ON rm.user_id = ru.id
 		WHERE m.channel_id = ?
 		ORDER BY m.created_at DESC
 		LIMIT ?`, channelID, limit)
@@ -201,12 +204,24 @@ func (s *ChannelService) GetMessages(channelID, limit int) ([]models.Message, er
 	var messages []models.Message
 	for rows.Next() {
 		var msg models.Message
+		var replyID sql.NullInt64
+		var replyUsername, replyContent string
 		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.AvatarColor,
-			&msg.Content, &msg.FileURL, &msg.FileType, &msg.CreatedAt, &msg.EditedAt); err != nil {
+			&msg.Content, &msg.FileURL, &msg.FileType, &msg.CreatedAt, &msg.EditedAt,
+			&replyID, &replyUsername, &replyContent); err != nil {
 			return nil, err
 		}
 		msg.Content = s.crypto.Decrypt(msg.Content)
 		msg.FileURL = s.crypto.Decrypt(msg.FileURL)
+		if replyID.Valid {
+			id := int(replyID.Int64)
+			msg.ReplyToID = &id
+			msg.ReplyTo = &models.ReplySnippet{
+				ID:       id,
+				Username: replyUsername,
+				Content:  s.crypto.Decrypt(replyContent),
+			}
+		}
 		messages = append(messages, msg)
 	}
 
@@ -220,9 +235,12 @@ func (s *ChannelService) SearchMessages(channelID int, query string) ([]models.M
 	// Content is encrypted — fetch all messages and filter in-memory.
 	rows, err := s.db.Query(`
 		SELECT m.id, m.channel_id, m.user_id, u.username, u.avatar_color,
-		       m.content, COALESCE(m.file_url,''), COALESCE(m.file_type,''), m.created_at, m.edited_at
+		       m.content, COALESCE(m.file_url,''), COALESCE(m.file_type,''), m.created_at, m.edited_at,
+		       rm.id, COALESCE(ru.username,''), COALESCE(rm.content,'')
 		FROM messages m
 		JOIN users u ON m.user_id = u.id
+		LEFT JOIN messages rm ON m.reply_to_id = rm.id
+		LEFT JOIN users ru ON rm.user_id = ru.id
 		WHERE m.channel_id = ?
 		ORDER BY m.created_at DESC`, channelID)
 	if err != nil {
@@ -234,12 +252,24 @@ func (s *ChannelService) SearchMessages(channelID int, query string) ([]models.M
 	var matches []models.Message
 	for rows.Next() {
 		var msg models.Message
+		var replyID sql.NullInt64
+		var replyUsername, replyContent string
 		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.AvatarColor,
-			&msg.Content, &msg.FileURL, &msg.FileType, &msg.CreatedAt, &msg.EditedAt); err != nil {
+			&msg.Content, &msg.FileURL, &msg.FileType, &msg.CreatedAt, &msg.EditedAt,
+			&replyID, &replyUsername, &replyContent); err != nil {
 			return nil, err
 		}
 		msg.Content = s.crypto.Decrypt(msg.Content)
 		msg.FileURL = s.crypto.Decrypt(msg.FileURL)
+		if replyID.Valid {
+			id := int(replyID.Int64)
+			msg.ReplyToID = &id
+			msg.ReplyTo = &models.ReplySnippet{
+				ID:       id,
+				Username: replyUsername,
+				Content:  s.crypto.Decrypt(replyContent),
+			}
+		}
 		if strings.Contains(strings.ToLower(msg.Content), query) {
 			matches = append(matches, msg)
 			if len(matches) >= 50 {
@@ -259,9 +289,13 @@ func (s *ChannelService) SaveMessage(msg *models.Message) error {
 	if err != nil {
 		return err
 	}
+	var replyToID interface{}
+	if msg.ReplyToID != nil {
+		replyToID = *msg.ReplyToID
+	}
 	result, err := s.db.Exec(
-		"INSERT INTO messages (channel_id, user_id, content, file_url, file_type) VALUES (?, ?, ?, ?, ?)",
-		msg.ChannelID, msg.UserID, encContent, encFileURL, msg.FileType,
+		"INSERT INTO messages (channel_id, user_id, content, file_url, file_type, reply_to_id) VALUES (?, ?, ?, ?, ?, ?)",
+		msg.ChannelID, msg.UserID, encContent, encFileURL, msg.FileType, replyToID,
 	)
 	if err != nil {
 		return err
@@ -270,6 +304,22 @@ func (s *ChannelService) SaveMessage(msg *models.Message) error {
 	msg.ID = int(id)
 	s.db.QueryRow("SELECT avatar_color FROM users WHERE id = ?", msg.UserID).Scan(&msg.AvatarColor)
 	return nil
+}
+
+// GetReplySnippet obtiene el extracto de un mensaje para mostrar en la respuesta.
+func (s *ChannelService) GetReplySnippet(messageID int) *models.ReplySnippet {
+	var snippet models.ReplySnippet
+	var encContent string
+	err := s.db.QueryRow(`
+		SELECT m.id, u.username, m.content
+		FROM messages m JOIN users u ON m.user_id = u.id
+		WHERE m.id = ?`, messageID,
+	).Scan(&snippet.ID, &snippet.Username, &encContent)
+	if err != nil {
+		return nil
+	}
+	snippet.Content = s.crypto.Decrypt(encContent)
+	return &snippet
 }
 
 // UpdateMessage edita el contenido de un mensaje. Devuelve el channel_id del mensaje.

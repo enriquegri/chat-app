@@ -8,8 +8,9 @@ export function useWebSocket(channelId, onMessage, onTyping) {
     const token = localStorage.getItem('token')
     if (!token) return
 
+    const apiHost = import.meta.env.VITE_API_HOST || window.location.host
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const url = `${proto}//${window.location.host}/ws/${channelId}?token=${token}`
+    const url = `${proto}//${apiHost}/ws/${channelId}?token=${token}`
     ws.current = new WebSocket(url)
 
     ws.current.onmessage = (e) => {

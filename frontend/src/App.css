@@ -835,6 +835,9 @@ body {
 .chat-header {
   padding-top: max(.75rem, env(safe-area-inset-top, 0px));
 }
+.admin-header {
+  padding-top: max(.875rem, env(safe-area-inset-top, 0px));
+}
 .composer {
   padding-bottom: max(.75rem, env(safe-area-inset-bottom, 0px));
 }
@@ -938,13 +941,51 @@ body {
     min-width: unset;
   }
 
-  /* Admin: horizontal scroll on tables */
+  /* Admin */
+  .admin-layout { height: 100dvh; }
+
+  .admin-header {
+    gap: .5rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .admin-header h1 { font-size: var(--text-base); }
+
+  /* Hide "Logged in as" badge — not useful on small screens */
+  .admin-badge { display: none; }
+
+  .admin-back {
+    font-size: var(--text-sm);
+    min-height: 44px;
+    padding: 0 .75rem;
+  }
+
+  .admin-tabs { padding: 0 .75rem; }
+  .admin-tabs button { padding: .625rem .75rem; font-size: var(--text-xs); }
+
+  .admin-content { padding: .75rem; }
+
+  /* Hide ID column on mobile */
+  .admin-table th:first-child,
+  .admin-table td:first-child { display: none; }
+
+  /* Compact table cells */
+  .admin-table th,
+  .admin-table td { padding: .5rem .6rem; font-size: var(--text-xs); }
+
+  /* Action buttons: stack vertically, full touch targets */
+  .admin-actions { flex-direction: column; gap: .35rem; align-items: flex-start; }
+  .btn-role, .btn-delete {
+    min-height: 36px;
+    padding: 0 .6rem;
+    font-size: var(--text-xs);
+    width: 100%;
+    text-align: center;
+  }
+
   .admin-table-wrap {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-  }
-
-  .admin-content {
-    padding: .75rem;
   }
 }

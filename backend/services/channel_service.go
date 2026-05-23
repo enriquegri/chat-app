@@ -73,8 +73,8 @@ func (s *ChannelService) JoinChannel(channelID, userID int) error {
 
 func (s *ChannelService) GetMessages(channelID, limit int) ([]models.Message, error) {
 	rows, err := s.db.Query(`
-		SELECT m.id, m.channel_id, m.user_id, u.username, m.content,
-		       COALESCE(m.file_url,''), COALESCE(m.file_type,''), m.created_at
+		SELECT m.id, m.channel_id, m.user_id, u.username, u.avatar_color,
+		       m.content, COALESCE(m.file_url,''), COALESCE(m.file_type,''), m.created_at
 		FROM messages m
 		JOIN users u ON m.user_id = u.id
 		WHERE m.channel_id = ?
@@ -88,7 +88,7 @@ func (s *ChannelService) GetMessages(channelID, limit int) ([]models.Message, er
 	var messages []models.Message
 	for rows.Next() {
 		var msg models.Message
-		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username,
+		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.AvatarColor,
 			&msg.Content, &msg.FileURL, &msg.FileType, &msg.CreatedAt); err != nil {
 			return nil, err
 		}
@@ -111,5 +111,6 @@ func (s *ChannelService) SaveMessage(msg *models.Message) error {
 	}
 	id, _ := result.LastInsertId()
 	msg.ID = int(id)
+	s.db.QueryRow("SELECT avatar_color FROM users WHERE id = ?", msg.UserID).Scan(&msg.AvatarColor)
 	return nil
 }

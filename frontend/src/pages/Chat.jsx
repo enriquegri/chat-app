@@ -5,7 +5,7 @@ import Message from '../components/Message'
 
 const TYPING_TIMEOUT = 2000
 
-export default function Chat({ user, onLogout, onOpenAdmin }) {
+export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const [channelList, setChannelList] = useState([])
   const [activeChannel, setActiveChannel] = useState(null)
   const [messages, setMessages] = useState([])
@@ -112,8 +112,13 @@ export default function Chat({ user, onLogout, onOpenAdmin }) {
           <button className="logout-btn" onClick={onLogout}>Exit</button>
         </div>
         <div className="user-info">
-          <span className="user-avatar">{user.username[0].toUpperCase()}</span>
-          <span>{user.username}</span>
+          <span className="user-avatar" style={{ background: user.avatar_color || '#5865f2' }}>
+            {user.username[0].toUpperCase()}
+          </span>
+          <div>
+            <div>{user.username}</div>
+            <button className="profile-link" onClick={onOpenProfile}>Edit profile</button>
+          </div>
         </div>
         {onOpenAdmin && (
           <button className="admin-link" onClick={onOpenAdmin}>⚙ Admin Panel</button>

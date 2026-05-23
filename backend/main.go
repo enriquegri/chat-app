@@ -35,6 +35,7 @@ func main() {
 	channelHandler := handlers.NewChannelHandler(channelSvc)
 	reactionHandler := handlers.NewReactionHandler(reactionSvc)
 	adminHandler := handlers.NewAdminHandler(adminSvc)
+	profileHandler := handlers.NewProfileHandler(authSvc)
 	wsHandler := handlers.NewWSHandler(hub, authSvc, channelSvc)
 	authMiddleware := middleware.Auth(authSvc)
 	adminMiddleware := middleware.Admin
@@ -57,6 +58,9 @@ func main() {
 	api := r.PathPrefix("/api").Subrouter()
 	api.Use(authMiddleware)
 	api.HandleFunc("/me", meHandler).Methods("GET")
+	api.HandleFunc("/profile", profileHandler.Get).Methods("GET")
+	api.HandleFunc("/profile", profileHandler.Update).Methods("PUT")
+	api.HandleFunc("/profile/password", profileHandler.ChangePassword).Methods("PUT")
 	api.HandleFunc("/channels", channelHandler.List).Methods("GET")
 	api.Handle("/channels", adminMiddleware(http.HandlerFunc(channelHandler.Create))).Methods("POST")
 	api.HandleFunc("/channels/{id}/messages", channelHandler.Messages).Methods("GET")

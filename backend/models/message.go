@@ -3,14 +3,15 @@ package models
 import "time"
 
 type Message struct {
-	ID        int       `json:"id"`
-	ChannelID int       `json:"channel_id"`
-	UserID    int       `json:"user_id"`
-	Username  string    `json:"username"`
-	Content   string    `json:"content"`
-	FileURL   string    `json:"file_url,omitempty"`
-	FileType  string    `json:"file_type,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
+	ID          int       `json:"id"`
+	ChannelID   int       `json:"channel_id"`
+	UserID      int       `json:"user_id"`
+	Username    string    `json:"username"`
+	AvatarColor string    `json:"avatar_color"`
+	Content     string    `json:"content"`
+	FileURL     string    `json:"file_url,omitempty"`
+	FileType    string    `json:"file_type,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 // WSMessage es el formato de mensaje enviado por WebSocket

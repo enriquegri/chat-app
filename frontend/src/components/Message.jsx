@@ -37,7 +37,11 @@ export default function Message({ message, currentUserId, onReactionUpdate }) {
 
   return (
     <div className={`message ${isOwn ? 'own' : ''}`}>
-      {!isOwn && <span className="message-author">{message.username}</span>}
+      {!isOwn && (
+        <span className="message-author" style={{ color: message.avatar_color || '#9ea3a8' }}>
+          {message.username}
+        </span>
+      )}
 
       <div className="message-bubble-wrap">
         <div className="message-bubble">

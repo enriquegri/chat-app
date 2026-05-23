@@ -33,6 +33,12 @@ export const uploads = {
   },
 }
 
+export const profile = {
+  get: () => api.get('/api/profile'),
+  update: (data) => api.put('/api/profile', data),
+  changePassword: (data) => api.put('/api/profile/password', data),
+}
+
 export const admin = {
   listUsers: () => api.get('/api/admin/users'),
   deleteUser: (id) => api.delete(`/api/admin/users/${id}`),

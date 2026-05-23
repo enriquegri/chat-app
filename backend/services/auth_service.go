@@ -65,9 +65,9 @@ func (s *AuthService) Login(req models.LoginRequest) (*models.AuthResponse, erro
 	var hash string
 
 	err := s.db.QueryRow(
-		"SELECT id, username, email, role, password_hash, created_at FROM users WHERE email = ?",
+		"SELECT id, username, email, role, bio, avatar_color, password_hash, created_at FROM users WHERE email = ?",
 		req.Email,
-	).Scan(&user.ID, &user.Username, &user.Email, &user.Role, &hash, &user.CreatedAt)
+	).Scan(&user.ID, &user.Username, &user.Email, &user.Role, &user.Bio, &user.AvatarColor, &hash, &user.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, errors.New("invalid credentials")
@@ -110,12 +110,50 @@ func (s *AuthService) ValidateToken(tokenStr string) (*jwt.MapClaims, error) {
 func (s *AuthService) GetUserByID(id int) (*models.User, error) {
 	var user models.User
 	err := s.db.QueryRow(
-		"SELECT id, username, email, role, created_at FROM users WHERE id = ?", id,
-	).Scan(&user.ID, &user.Username, &user.Email, &user.Role, &user.CreatedAt)
+		"SELECT id, username, email, role, bio, avatar_color, created_at FROM users WHERE id = ?", id,
+	).Scan(&user.ID, &user.Username, &user.Email, &user.Role, &user.Bio, &user.AvatarColor, &user.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (s *AuthService) UpdateProfile(userID int, req models.UpdateProfileRequest) (*models.User, error) {
+	if len(req.Bio) > 200 {
+		return nil, errors.New("bio must be 200 characters or less")
+	}
+	color := req.AvatarColor
+	if len(color) != 7 || color[0] != '#' {
+		color = "#5865f2"
+	}
+	_, err := s.db.Exec(
+		"UPDATE users SET bio = ?, avatar_color = ? WHERE id = ?",
+		req.Bio, color, userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return s.GetUserByID(userID)
+}
+
+func (s *AuthService) ChangePassword(userID int, req models.ChangePasswordRequest) error {
+	if len(req.NewPassword) < 6 {
+		return errors.New("password must be at least 6 characters")
+	}
+	var hash string
+	err := s.db.QueryRow("SELECT password_hash FROM users WHERE id = ?", userID).Scan(&hash)
+	if err != nil {
+		return errors.New("user not found")
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(req.CurrentPassword)); err != nil {
+		return errors.New("current password is incorrect")
+	}
+	newHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.Exec("UPDATE users SET password_hash = ? WHERE id = ?", string(newHash), userID)
+	return err
 }
 
 func (s *AuthService) generateToken(user models.User) (string, error) {

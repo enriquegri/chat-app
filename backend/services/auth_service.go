@@ -13,10 +13,11 @@ import (
 type AuthService struct {
 	db        *sql.DB
 	jwtSecret []byte
+	crypto    *Crypto
 }
 
-func NewAuthService(db *sql.DB, jwtSecret string) *AuthService {
-	return &AuthService{db: db, jwtSecret: []byte(jwtSecret)}
+func NewAuthService(db *sql.DB, jwtSecret string, crypto *Crypto) *AuthService {
+	return &AuthService{db: db, jwtSecret: []byte(jwtSecret), crypto: crypto}
 }
 
 func (s *AuthService) Register(req models.RegisterRequest) (*models.AuthResponse, error) {
@@ -32,9 +33,15 @@ func (s *AuthService) Register(req models.RegisterRequest) (*models.AuthResponse
 		return nil, err
 	}
 
+	encEmail, err := s.crypto.Encrypt(req.Email)
+	if err != nil {
+		return nil, err
+	}
+	emailHash := s.crypto.HMAC(req.Email)
+
 	result, err := s.db.Exec(
-		"INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)",
-		req.Username, req.Email, string(hash),
+		"INSERT INTO users (username, email, email_hash, password_hash) VALUES (?, ?, ?, ?)",
+		req.Username, encEmail, emailHash, string(hash),
 	)
 	if err != nil {
 		return nil, errors.New("username or email already exists")
@@ -64,9 +71,10 @@ func (s *AuthService) Login(req models.LoginRequest) (*models.AuthResponse, erro
 	var user models.User
 	var hash string
 
+	emailHash := s.crypto.HMAC(req.Email)
 	err := s.db.QueryRow(
-		"SELECT id, username, email, role, bio, avatar_color, password_hash, created_at FROM users WHERE email = ?",
-		req.Email,
+		"SELECT id, username, email, role, bio, avatar_color, password_hash, created_at FROM users WHERE email_hash = ?",
+		emailHash,
 	).Scan(&user.ID, &user.Username, &user.Email, &user.Role, &user.Bio, &user.AvatarColor, &hash, &user.CreatedAt)
 
 	if err == sql.ErrNoRows {
@@ -75,6 +83,9 @@ func (s *AuthService) Login(req models.LoginRequest) (*models.AuthResponse, erro
 	if err != nil {
 		return nil, err
 	}
+
+	user.Email = s.crypto.Decrypt(user.Email)
+	user.Bio = s.crypto.Decrypt(user.Bio)
 
 	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(req.Password)); err != nil {
 		return nil, errors.New("invalid credentials")
@@ -115,6 +126,8 @@ func (s *AuthService) GetUserByID(id int) (*models.User, error) {
 	if err != nil {
 		return nil, err
 	}
+	user.Email = s.crypto.Decrypt(user.Email)
+	user.Bio = s.crypto.Decrypt(user.Bio)
 	return &user, nil
 }
 
@@ -126,9 +139,13 @@ func (s *AuthService) UpdateProfile(userID int, req models.UpdateProfileRequest)
 	if len(color) != 7 || color[0] != '#' {
 		color = "#5865f2"
 	}
-	_, err := s.db.Exec(
+	encBio, err := s.crypto.Encrypt(req.Bio)
+	if err != nil {
+		return nil, err
+	}
+	_, err = s.db.Exec(
 		"UPDATE users SET bio = ?, avatar_color = ? WHERE id = ?",
-		req.Bio, color, userID,
+		encBio, color, userID,
 	)
 	if err != nil {
 		return nil, err

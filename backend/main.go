@@ -23,10 +23,11 @@ func main() {
 	log.Println("Connected to database")
 
 	// Services
-	authSvc := services.NewAuthService(db.DB, cfg.JWTSecret)
-	channelSvc := services.NewChannelService(db.DB)
+	crypto := services.NewCrypto(cfg.EncryptionKey)
+	authSvc := services.NewAuthService(db.DB, cfg.JWTSecret, crypto)
+	channelSvc := services.NewChannelService(db.DB, crypto)
 	reactionSvc := services.NewReactionService(db.DB)
-	adminSvc := services.NewAdminService(db.DB)
+	adminSvc := services.NewAdminService(db.DB, crypto)
 	hub := services.NewHub()
 	go hub.Run()
 

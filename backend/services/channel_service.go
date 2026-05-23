@@ -3,16 +3,18 @@ package services
 import (
 	"database/sql"
 	"errors"
+	"strings"
 
 	"github.com/yourusername/chat-app/models"
 )
 
 type ChannelService struct {
-	db *sql.DB
+	db     *sql.DB
+	crypto *Crypto
 }
 
-func NewChannelService(db *sql.DB) *ChannelService {
-	return &ChannelService{db: db}
+func NewChannelService(db *sql.DB, crypto *Crypto) *ChannelService {
+	return &ChannelService{db: db, crypto: crypto}
 }
 
 func (s *ChannelService) GetUserChannels(userID int) ([]models.Channel, error) {
@@ -101,6 +103,8 @@ func (s *ChannelService) GetMessages(channelID, limit int) ([]models.Message, er
 			&msg.Content, &msg.FileURL, &msg.FileType, &msg.CreatedAt); err != nil {
 			return nil, err
 		}
+		msg.Content = s.crypto.Decrypt(msg.Content)
+		msg.FileURL = s.crypto.Decrypt(msg.FileURL)
 		messages = append(messages, msg)
 	}
 
@@ -111,35 +115,51 @@ func (s *ChannelService) GetMessages(channelID, limit int) ([]models.Message, er
 }
 
 func (s *ChannelService) SearchMessages(channelID int, query string) ([]models.Message, error) {
+	// Content is encrypted — fetch all messages and filter in-memory.
 	rows, err := s.db.Query(`
 		SELECT m.id, m.channel_id, m.user_id, u.username, u.avatar_color,
 		       m.content, COALESCE(m.file_url,''), COALESCE(m.file_type,''), m.created_at
 		FROM messages m
 		JOIN users u ON m.user_id = u.id
-		WHERE m.channel_id = ? AND m.content LIKE ?
-		ORDER BY m.created_at DESC
-		LIMIT 50`, channelID, "%"+query+"%")
+		WHERE m.channel_id = ?
+		ORDER BY m.created_at DESC`, channelID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var messages []models.Message
+	query = strings.ToLower(query)
+	var matches []models.Message
 	for rows.Next() {
 		var msg models.Message
 		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.AvatarColor,
 			&msg.Content, &msg.FileURL, &msg.FileType, &msg.CreatedAt); err != nil {
 			return nil, err
 		}
-		messages = append(messages, msg)
+		msg.Content = s.crypto.Decrypt(msg.Content)
+		msg.FileURL = s.crypto.Decrypt(msg.FileURL)
+		if strings.Contains(strings.ToLower(msg.Content), query) {
+			matches = append(matches, msg)
+			if len(matches) >= 50 {
+				break
+			}
+		}
 	}
-	return messages, nil
+	return matches, nil
 }
 
 func (s *ChannelService) SaveMessage(msg *models.Message) error {
+	encContent, err := s.crypto.Encrypt(msg.Content)
+	if err != nil {
+		return err
+	}
+	encFileURL, err := s.crypto.Encrypt(msg.FileURL)
+	if err != nil {
+		return err
+	}
 	result, err := s.db.Exec(
 		"INSERT INTO messages (channel_id, user_id, content, file_url, file_type) VALUES (?, ?, ?, ?, ?)",
-		msg.ChannelID, msg.UserID, msg.Content, msg.FileURL, msg.FileType,
+		msg.ChannelID, msg.UserID, encContent, encFileURL, msg.FileType,
 	)
 	if err != nil {
 		return err

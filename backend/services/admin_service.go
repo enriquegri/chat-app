@@ -8,11 +8,12 @@ import (
 )
 
 type AdminService struct {
-	db *sql.DB
+	db     *sql.DB
+	crypto *Crypto
 }
 
-func NewAdminService(db *sql.DB) *AdminService {
-	return &AdminService{db: db}
+func NewAdminService(db *sql.DB, crypto *Crypto) *AdminService {
+	return &AdminService{db: db, crypto: crypto}
 }
 
 func (s *AdminService) ListUsers() ([]models.UserAdmin, error) {
@@ -30,6 +31,7 @@ func (s *AdminService) ListUsers() ([]models.UserAdmin, error) {
 		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.Role, &u.CreatedAt); err != nil {
 			return nil, err
 		}
+		u.Email = s.crypto.Decrypt(u.Email)
 		users = append(users, u)
 	}
 	return users, nil
@@ -43,9 +45,14 @@ func (s *AdminService) CreateUser(username, email, password, role string) error 
 	if err != nil {
 		return err
 	}
+	encEmail, err := s.crypto.Encrypt(email)
+	if err != nil {
+		return err
+	}
+	emailHash := s.crypto.HMAC(email)
 	_, err = s.db.Exec(
-		`INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)`,
-		username, email, string(hash), role,
+		`INSERT INTO users (username, email, email_hash, password_hash, role) VALUES (?, ?, ?, ?, ?)`,
+		username, encEmail, emailHash, string(hash), role,
 	)
 	return err
 }

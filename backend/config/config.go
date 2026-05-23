@@ -1,6 +1,8 @@
 package config
 
 import (
+	"encoding/hex"
+	"log"
 	"os"
 	"strings"
 )
@@ -15,6 +17,7 @@ type Config struct {
 	JWTSecret           string
 	RegistrationEnabled bool
 	AllowedOrigins      map[string]bool
+	EncryptionKey       []byte
 }
 
 func Load() *Config {
@@ -28,7 +31,19 @@ func Load() *Config {
 		JWTSecret:           getEnv("JWT_SECRET", "supersecretkey-change-in-production"),
 		RegistrationEnabled: getEnv("REGISTRATION_ENABLED", "false") == "true",
 		AllowedOrigins:      parseOrigins(getEnv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:4173")),
+		EncryptionKey:       parseHexKey(getEnv("ENCRYPTION_KEY", "")),
 	}
+}
+
+func parseHexKey(s string) []byte {
+	if s == "" {
+		log.Fatal("ENCRYPTION_KEY is required — generate one with: openssl rand -hex 32")
+	}
+	b, err := hex.DecodeString(s)
+	if err != nil || len(b) != 32 {
+		log.Fatal("ENCRYPTION_KEY must be a 64-character hex string (32 bytes)")
+	}
+	return b
 }
 
 func parseOrigins(raw string) map[string]bool {

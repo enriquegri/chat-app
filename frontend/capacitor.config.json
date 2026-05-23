@@ -1,5 +1,14 @@
 {
   "appId": "dev.enriquegr.chatapp",
   "appName": "ChatApp",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "launchAutoHide": true,
+      "backgroundColor": "#5b5ef4",
+      "androidSplashResourceName": "splash",
+      "showSpinner": false
+    }
+  }
 }

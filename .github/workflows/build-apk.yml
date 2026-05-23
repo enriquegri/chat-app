@@ -24,7 +24,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: frontend
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Build React app
         working-directory: frontend
@@ -40,6 +40,10 @@ jobs:
       - name: Sync Capacitor
         working-directory: frontend
         run: npx cap sync android
+
+      - name: Generate app icons and splash screen
+        working-directory: frontend
+        run: npx @capacitor/assets generate --android --iconBackgroundColor '#5b5ef4' --iconBackgroundColorDark '#5b5ef4' --splashBackgroundColor '#5b5ef4' --splashBackgroundColorDark '#3a3db8'
 
       - name: Set up Java 21
         uses: actions/setup-java@v4

@@ -175,7 +175,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     : ''
 
   return (
-    <div className="chat-layout">
+    <div className={`chat-layout${activeChannel ? ' has-channel' : ''}`}>
       <aside className="sidebar">
         <div className="sidebar-header">
           <h2>ChatApp</h2>

@@ -10,22 +10,29 @@ import (
 	"github.com/yourusername/chat-app/services"
 )
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		return true // Permitir cualquier origen (cambiar en producción)
-	},
-}
-
 type WSHandler struct {
-	hub        *services.Hub
-	authSvc    *services.AuthService
-	channelSvc *services.ChannelService
+	hub            *services.Hub
+	authSvc        *services.AuthService
+	channelSvc     *services.ChannelService
+	allowedOrigins map[string]bool
 }
 
-func NewWSHandler(hub *services.Hub, authSvc *services.AuthService, channelSvc *services.ChannelService) *WSHandler {
-	return &WSHandler{hub: hub, authSvc: authSvc, channelSvc: channelSvc}
+func NewWSHandler(hub *services.Hub, authSvc *services.AuthService, channelSvc *services.ChannelService, allowedOrigins map[string]bool) *WSHandler {
+	return &WSHandler{hub: hub, authSvc: authSvc, channelSvc: channelSvc, allowedOrigins: allowedOrigins}
+}
+
+func (h *WSHandler) upgrader() *websocket.Upgrader {
+	return &websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin: func(r *http.Request) bool {
+			origin := r.Header.Get("Origin")
+			if origin == "" {
+				return true // APK Capacitor no envía Origin
+			}
+			return h.allowedOrigins[origin]
+		},
+	}
 }
 
 func (h *WSHandler) Handle(w http.ResponseWriter, r *http.Request) {
@@ -53,7 +60,7 @@ func (h *WSHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	userID := int(mapClaims["user_id"].(float64))
 	username := mapClaims["username"].(string)
 
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, err := h.upgrader().Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}

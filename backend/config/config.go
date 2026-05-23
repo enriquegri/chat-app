@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 )
 
 type Config struct {
@@ -13,6 +14,7 @@ type Config struct {
 	DBName              string
 	JWTSecret           string
 	RegistrationEnabled bool
+	AllowedOrigins      map[string]bool
 }
 
 func Load() *Config {
@@ -25,7 +27,19 @@ func Load() *Config {
 		DBName:              getEnv("DB_NAME", "chatapp"),
 		JWTSecret:           getEnv("JWT_SECRET", "supersecretkey-change-in-production"),
 		RegistrationEnabled: getEnv("REGISTRATION_ENABLED", "false") == "true",
+		AllowedOrigins:      parseOrigins(getEnv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:4173")),
 	}
+}
+
+func parseOrigins(raw string) map[string]bool {
+	origins := make(map[string]bool)
+	for _, o := range strings.Split(raw, ",") {
+		o = strings.TrimSpace(o)
+		if o != "" {
+			origins[o] = true
+		}
+	}
+	return origins
 }
 
 func getEnv(key, fallback string) string {

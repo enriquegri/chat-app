@@ -28,6 +28,9 @@ jobs:
 
       - name: Build React app
         working-directory: frontend
+        env:
+          VITE_API_URL: https://api.enriquegr.dev
+          VITE_API_HOST: api.enriquegr.dev
         run: npm run build
 
       - name: Add Android platform

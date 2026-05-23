@@ -1,12 +1,5 @@
 {
   "appId": "dev.enriquegr.chatapp",
   "appName": "ChatApp",
-  "webDir": "dist",
-  "server": {
-    "url": "https://chat.enriquegr.dev",
-    "cleartext": false
-  },
-  "android": {
-    "allowMixedContent": false
-  }
+  "webDir": "dist"
 }

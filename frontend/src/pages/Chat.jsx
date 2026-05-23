@@ -19,13 +19,58 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const [searching, setSearching] = useState(false)
   const searchTimer = useRef(null)
   const [uploading, setUploading] = useState(false)
+  const [unread, setUnread] = useState(0)
   const messagesEndRef = useRef(null)
   const typingTimers = useRef({})
   const fileInputRef = useRef(null)
+  const activeChannelRef = useRef(null)
+
+  // Keep ref in sync so callbacks always see current channel
+  useEffect(() => { activeChannelRef.current = activeChannel }, [activeChannel])
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+  }, [])
+
+  // Reset unread when tab becomes visible
+  useEffect(() => {
+    const onVisible = () => {
+      if (!document.hidden) {
+        setUnread(0)
+        document.title = 'ChatApp'
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [])
+
+  // Update tab title with unread count
+  useEffect(() => {
+    document.title = unread > 0 ? `(${unread}) ChatApp` : 'ChatApp'
+  }, [unread])
 
   const handleNewMessage = useCallback((msg) => {
     setMessages(prev => [...prev, { ...msg, reactions: [] }])
-  }, [])
+
+    if (msg.user_id === user.id) return
+
+    if (document.hidden) {
+      setUnread(prev => prev + 1)
+
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const ch = activeChannelRef.current
+        const n = new Notification(`#${ch?.name || 'chat'}`, {
+          body: `${msg.username}: ${msg.content || '📎 attachment'}`,
+          icon: '/favicon.ico',
+          tag: 'chat-message',
+        })
+        n.onclick = () => { window.focus(); n.close() }
+      }
+    }
+  }, [user.id])
 
   const handleTyping = useCallback((username) => {
     setTypingUsers(prev => prev.includes(username) ? prev : [...prev, username])
@@ -48,6 +93,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     if (!activeChannel) return
     setMessages([])
     setTypingUsers([])
+    setUnread(0)
     channelsApi.messages(activeChannel.id).then(({ data }) => {
       setMessages(data.map(m => ({ ...m, reactions: [] })))
       // Cargar reactions para todos los mensajes

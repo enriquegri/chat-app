@@ -7,6 +7,10 @@ export function useWebSocket(channelId, onMessage, onTyping) {
     if (!channelId) return
     const token = localStorage.getItem('token')
     if (!token) return
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      if (payload.exp && payload.exp * 1000 < Date.now()) return
+    } catch { return }
 
     const apiHost = import.meta.env.VITE_API_HOST || window.location.host
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'

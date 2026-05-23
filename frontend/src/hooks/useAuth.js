@@ -9,16 +9,20 @@ export function useAuth() {
     const token = localStorage.getItem('token')
     const storedUser = localStorage.getItem('user')
     if (token && storedUser) {
-      const u = JSON.parse(storedUser)
-      if (!u.role) {
-        try {
-          const payload = JSON.parse(atob(token.split('.')[1]))
-          u.role = payload.role || 'user'
-        } catch {
-          u.role = 'user'
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        if (payload.exp && payload.exp * 1000 < Date.now()) {
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
+        } else {
+          const u = JSON.parse(storedUser)
+          u.role = payload.role || u.role || 'user'
+          setUser(u)
         }
+      } catch {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
       }
-      setUser(u)
     }
     setLoading(false)
   }, [])

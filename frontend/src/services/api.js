@@ -8,6 +8,18 @@ api.interceptors.request.use(config => {
   return config
 })
 
+api.interceptors.response.use(
+  res => res,
+  err => {
+    if (err.response?.status === 401) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      window.location.reload()
+    }
+    return Promise.reject(err)
+  }
+)
+
 export const auth = {
   registrationStatus: () => api.get('/registration-status'),
   register: (data) => api.post('/auth/register', data),

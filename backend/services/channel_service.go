@@ -101,6 +101,32 @@ func (s *ChannelService) GetMessages(channelID, limit int) ([]models.Message, er
 	return messages, nil
 }
 
+func (s *ChannelService) SearchMessages(channelID int, query string) ([]models.Message, error) {
+	rows, err := s.db.Query(`
+		SELECT m.id, m.channel_id, m.user_id, u.username, u.avatar_color,
+		       m.content, COALESCE(m.file_url,''), COALESCE(m.file_type,''), m.created_at
+		FROM messages m
+		JOIN users u ON m.user_id = u.id
+		WHERE m.channel_id = ? AND m.content LIKE ?
+		ORDER BY m.created_at DESC
+		LIMIT 50`, channelID, "%"+query+"%")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var messages []models.Message
+	for rows.Next() {
+		var msg models.Message
+		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.AvatarColor,
+			&msg.Content, &msg.FileURL, &msg.FileType, &msg.CreatedAt); err != nil {
+			return nil, err
+		}
+		messages = append(messages, msg)
+	}
+	return messages, nil
+}
+
 func (s *ChannelService) SaveMessage(msg *models.Message) error {
 	result, err := s.db.Exec(
 		"INSERT INTO messages (channel_id, user_id, content, file_url, file_type) VALUES (?, ?, ?, ?, ?)",

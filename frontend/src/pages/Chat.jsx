@@ -13,6 +13,11 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const [newChannel, setNewChannel] = useState('')
   const [showNewChannel, setShowNewChannel] = useState(false)
   const [typingUsers, setTypingUsers] = useState([])
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [searching, setSearching] = useState(false)
+  const searchTimer = useRef(null)
   const [uploading, setUploading] = useState(false)
   const messagesEndRef = useRef(null)
   const typingTimers = useRef({})
@@ -98,6 +103,26 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     setShowNewChannel(false)
   }
 
+  const handleSearch = (q) => {
+    setSearchQuery(q)
+    clearTimeout(searchTimer.current)
+    if (q.length < 2) { setSearchResults([]); return }
+    setSearching(true)
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const { data } = await channelsApi.search(activeChannel.id, q)
+        setSearchResults(data)
+      } catch {}
+      setSearching(false)
+    }, 300)
+  }
+
+  const closeSearch = () => {
+    setSearchOpen(false)
+    setSearchQuery('')
+    setSearchResults([])
+  }
+
   const typingText = typingUsers.length === 1
     ? `${typingUsers[0]} is typing...`
     : typingUsers.length > 1
@@ -160,9 +185,48 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
         {activeChannel ? (
           <>
             <div className="chat-header">
-              <h3># {activeChannel.name}</h3>
-              {activeChannel.description && <p>{activeChannel.description}</p>}
+              <div className="chat-header-title">
+                <h3># {activeChannel.name}</h3>
+                {activeChannel.description && <p>{activeChannel.description}</p>}
+              </div>
+              <button
+                className="search-toggle"
+                onClick={() => searchOpen ? closeSearch() : setSearchOpen(true)}
+                title="Search messages"
+              >🔍</button>
             </div>
+            {searchOpen && (
+              <div className="search-bar">
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="Search messages..."
+                  value={searchQuery}
+                  onChange={e => handleSearch(e.target.value)}
+                />
+                {searchQuery.length >= 2 && (
+                  <div className="search-results">
+                    {searching && <div className="search-status">Searching...</div>}
+                    {!searching && searchResults.length === 0 && (
+                      <div className="search-status">No results</div>
+                    )}
+                    {searchResults.map(msg => (
+                      <div key={msg.id} className="search-result">
+                        <span className="search-result-author" style={{ color: msg.avatar_color || '#9ea3a8' }}>
+                          {msg.username}
+                        </span>
+                        <span className="search-result-content">
+                          {msg.content || '📎 attachment'}
+                        </span>
+                        <span className="search-result-time">
+                          {new Date(msg.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="messages-container">
               {messages.map(msg => (
                 <Message

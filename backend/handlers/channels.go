@@ -70,6 +70,30 @@ func (h *ChannelHandler) Messages(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, messages, http.StatusOK)
 }
 
+func (h *ChannelHandler) Search(w http.ResponseWriter, r *http.Request) {
+	channelID, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		jsonError(w, "invalid channel id", http.StatusBadRequest)
+		return
+	}
+
+	q := r.URL.Query().Get("q")
+	if len(q) < 2 {
+		jsonResponse(w, []models.Message{}, http.StatusOK)
+		return
+	}
+
+	messages, err := h.channelSvc.SearchMessages(channelID, q)
+	if err != nil {
+		jsonError(w, "search failed", http.StatusInternalServerError)
+		return
+	}
+	if messages == nil {
+		messages = []models.Message{}
+	}
+	jsonResponse(w, messages, http.StatusOK)
+}
+
 func (h *ChannelHandler) Join(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	channelID, err := strconv.Atoi(vars["id"])

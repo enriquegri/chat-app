@@ -49,7 +49,8 @@ func main() {
 	loginLimiter := middleware.NewRateLimiter(10) // 10 req/min por IP
 
 	r := mux.NewRouter()
-	r.Use(makeCORSMiddleware(cfg.AllowedOrigins))
+	// No usar r.Use() para CORS: gorilla/mux solo aplica Use() a rutas matchadas,
+	// por lo que las 404 no recibirían headers CORS. Se envuelve el servidor entero abajo.
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1 MB para endpoints normales
@@ -122,7 +123,8 @@ func main() {
 	admin.HandleFunc("/channels/{id}/members/{userId}", adminHandler.RemoveChannelMember).Methods("DELETE")
 
 	log.Printf("Server running on :%s", cfg.Port)
-	log.Fatal(http.ListenAndServe(":"+cfg.Port, r))
+	// Envolver el router completo con CORS para que también cubra 404s y OPTIONS
+	log.Fatal(http.ListenAndServe(":"+cfg.Port, makeCORSMiddleware(cfg.AllowedOrigins)(r)))
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {

@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
@@ -50,9 +52,19 @@ jobs:
         working-directory: frontend/android
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+      - name: Rename APK
+        run: |
+          mkdir -p release
+          cp frontend/android/app/build/outputs/apk/debug/app-debug.apk \
+             release/chatapp-build${{ github.run_number }}.apk
+
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v2
         with:
-          name: chatapp-debug-${{ github.sha }}
-          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 30
+          tag_name: build-${{ github.run_number }}
+          name: "Build #${{ github.run_number }}"
+          body: |
+            Commit: ${{ github.sha }}
+            ${{ github.event.head_commit.message }}
+          files: release/chatapp-build${{ github.run_number }}.apk
+          make_latest: true

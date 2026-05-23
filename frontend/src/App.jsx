@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from './hooks/useAuth'
+import { auth as authApi } from './services/api'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Chat from './pages/Chat'
@@ -11,6 +12,13 @@ function App() {
   const { user, loading, login, register, logout, updateUser } = useAuth()
   const [view, setView] = useState('login')
   const [page, setPage] = useState('chat') // 'chat' | 'admin' | 'profile'
+  const [registrationEnabled, setRegistrationEnabled] = useState(false)
+
+  useEffect(() => {
+    authApi.registrationStatus()
+      .then(({ data }) => setRegistrationEnabled(data.enabled))
+      .catch(() => setRegistrationEnabled(false))
+  }, [])
 
   if (loading) return <div className="loading">Loading...</div>
 
@@ -31,7 +39,7 @@ function App() {
     )
   }
 
-  if (view === 'register') {
+  if (view === 'register' && registrationEnabled) {
     return (
       <Register
         onRegister={register}
@@ -43,7 +51,7 @@ function App() {
   return (
     <Login
       onLogin={login}
-      onSwitchToRegister={() => setView('register')}
+      onSwitchToRegister={registrationEnabled ? () => setView('register') : null}
     />
   )
 }

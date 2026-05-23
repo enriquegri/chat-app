@@ -53,6 +53,10 @@ func main() {
 
 	// Public routes
 	r.HandleFunc("/health", healthHandler).Methods("GET")
+	r.HandleFunc("/registration-status", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]bool{"enabled": cfg.RegistrationEnabled})
+	}).Methods("GET")
 	r.HandleFunc("/auth/register", authHandler.Register).Methods("POST")
 	r.HandleFunc("/auth/login", authHandler.Login).Methods("POST")
 

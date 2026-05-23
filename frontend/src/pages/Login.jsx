@@ -44,12 +44,14 @@ export default function Login({ onLogin, onSwitchToRegister }) {
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
-        <p>
-          No account?{' '}
-          <button className="link-btn" onClick={onSwitchToRegister}>
-            Register here
-          </button>
-        </p>
+        {onSwitchToRegister && (
+          <p>
+            No account?{' '}
+            <button className="link-btn" onClick={onSwitchToRegister}>
+              Register here
+            </button>
+          </p>
+        )}
       </div>
     </div>
   )

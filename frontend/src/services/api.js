@@ -9,6 +9,7 @@ api.interceptors.request.use(config => {
 })
 
 export const auth = {
+  registrationStatus: () => api.get('/registration-status'),
   register: (data) => api.post('/auth/register', data),
   login: (data) => api.post('/auth/login', data),
 }

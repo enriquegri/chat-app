@@ -558,6 +558,26 @@ body {
 /* Picker abierto hacia abajo (primer mensaje cerca del top) */
 .emoji-picker.below { bottom: auto; top: calc(100% + 4px); }
 
+/* Full emoji picker */
+.emoji-picker.full {
+  width: 280px; flex-direction: column; gap: 0; padding: .4rem;
+}
+.emoji-search {
+  background: var(--bg-base); border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm); color: var(--text-primary);
+  font-size: var(--text-xs); padding: .3rem .5rem; width: 100%; margin-bottom: .3rem;
+  outline: none;
+}
+.emoji-search:focus { border-color: var(--accent-border); }
+.emoji-quick-row { display: flex; gap: .15rem; margin-bottom: .3rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: .3rem; }
+.emoji-quick-row button { background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: .15rem .2rem; border-radius: var(--radius-sm); }
+.emoji-quick-row button:hover { background: var(--bg-elevated); }
+.emoji-grid-scroll { max-height: 200px; overflow-y: auto; }
+.emoji-cat-label { color: var(--text-muted); font-size: var(--text-xs); padding: .25rem .1rem .1rem; }
+.emoji-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 1px; }
+.emoji-grid button { background: none; border: none; cursor: pointer; font-size: 1.05rem; padding: .2rem; border-radius: var(--radius-sm); line-height: 1; }
+.emoji-grid button:hover { background: var(--bg-elevated); }
+
 /* ── Message context menu (edit / delete) ─────────────────────── */
 .msg-menu-wrap { position: relative; }
 .msg-menu-trigger {
@@ -602,6 +622,25 @@ body {
 }
 .date-separator span { white-space: nowrap; }
 
+/* ── Mentions ────────────────────────────────────────────────── */
+.mention { color: var(--accent); font-weight: 600; border-radius: var(--radius-sm); padding: 0 .15rem; }
+.mention-me { background: var(--accent-subtle); }
+.msg-row.mentioned { background: rgba(91,94,244,.06); border-left: 2px solid var(--accent); padding-left: calc(.75rem - 2px); }
+
+/* Mention dropdown en el composer */
+.mention-dropdown {
+  position: absolute; bottom: 100%; left: 0; right: 0;
+  background: var(--bg-surface); border: 1px solid var(--border-default);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-md);
+  margin-bottom: .25rem; overflow: hidden; z-index: 20;
+}
+.mention-item {
+  align-items: center; cursor: pointer; display: flex; gap: .6rem;
+  padding: .5rem .85rem; font-size: var(--text-sm); color: var(--text-secondary);
+  transition: background .1s;
+}
+.mention-item:hover, .mention-item.active { background: var(--bg-hover); color: var(--text-primary); }
+
 /* ── Scroll to bottom button ─────────────────────────────────── */
 .scroll-to-bottom {
   position: absolute; bottom: 5.5rem; right: 1.5rem;
@@ -621,6 +660,7 @@ body {
   margin: .75rem 1.25rem 1rem;
   display: flex;
   flex-direction: column;
+  position: relative;
   transition: border-color .15s, box-shadow .15s;
   flex-shrink: 0;
 }

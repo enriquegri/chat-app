@@ -25,8 +25,11 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const [uploading, setUploading] = useState(false)
   const [unread, setUnread] = useState(0)
   const [showScrollBtn, setShowScrollBtn] = useState(false)
+  const [mentionQuery, setMentionQuery] = useState(null)
+  const [mentionIndex, setMentionIndex] = useState(0)
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
+  const composerInputRef = useRef(null)
   const typingTimers = useRef({})
   const fileInputRef = useRef(null)
   const activeChannelRef = useRef(null)
@@ -145,15 +148,43 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   }
 
   const handleKeyDown = (e) => {
+    if (mentionSuggestions.length > 0) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIndex(i => Math.min(i + 1, mentionSuggestions.length - 1)); return }
+      if (e.key === 'ArrowUp') { e.preventDefault(); setMentionIndex(i => Math.max(i - 1, 0)); return }
+      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); insertMention(mentionSuggestions[mentionIndex].username); return }
+      if (e.key === 'Escape') { setMentionQuery(null); return }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       sendMessage(e)
     }
   }
 
+  const mentionSuggestions = mentionQuery !== null
+    ? userList.filter(u => u.username.toLowerCase().startsWith(mentionQuery.toLowerCase()) && u.id !== user.id).slice(0, 6)
+    : []
+
+  const insertMention = (username) => {
+    const atIndex = input.lastIndexOf('@')
+    const newInput = input.slice(0, atIndex) + '@' + username + ' '
+    setInput(newInput)
+    setMentionQuery(null)
+    setMentionIndex(0)
+    composerInputRef.current?.focus()
+  }
+
   const handleInputChange = (e) => {
-    setInput(e.target.value)
+    const val = e.target.value
+    setInput(val)
     sendTyping()
+    // Detectar mención: buscar @ seguido de texto sin espacios al final
+    const match = val.match(/@(\w*)$/)
+    if (match) {
+      setMentionQuery(match[1])
+      setMentionIndex(0)
+    } else {
+      setMentionQuery(null)
+    }
   }
 
   const handleFileChange = async (e) => {
@@ -435,6 +466,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
                       message={msg}
                       currentUserId={user.id}
                       currentUserRole={user.role}
+                      currentUsername={user.username}
                       onReactionUpdate={loadReactions}
                       onEdited={handleMessageEdited}
                       onDeleted={handleMessageDeleted}
@@ -466,7 +498,24 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
                 style={{ display: 'none' }}
                 accept="image/*,.pdf,.txt"
               />
+              {mentionSuggestions.length > 0 && (
+                <div className="mention-dropdown">
+                  {mentionSuggestions.map((u, i) => (
+                    <div
+                      key={u.id}
+                      className={`mention-item${i === mentionIndex ? ' active' : ''}`}
+                      onMouseDown={() => insertMention(u.username)}
+                    >
+                      <span className="user-avatar-sm" style={{ background: u.avatar_color || '#5b5ef4' }}>
+                        {u.username[0].toUpperCase()}
+                      </span>
+                      @{u.username}
+                    </div>
+                  ))}
+                </div>
+              )}
               <input
+                ref={composerInputRef}
                 className="composer-input"
                 type="text"
                 placeholder={activeDMUser ? `Message ${activeDMUser.username}` : `Message #${activeChannel.name}`}

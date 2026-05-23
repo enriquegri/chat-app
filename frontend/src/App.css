@@ -828,6 +828,17 @@ body {
 /* Mobile back button — hidden on desktop, shown via media query */
 .mobile-back { display: none; }
 
+/* Safe area insets (notch, home bar) — apply globally, zero on desktop */
+.sidebar-header {
+  padding-top: max(1rem, env(safe-area-inset-top, 0px));
+}
+.chat-header {
+  padding-top: max(.75rem, env(safe-area-inset-top, 0px));
+}
+.composer {
+  padding-bottom: max(.75rem, env(safe-area-inset-bottom, 0px));
+}
+
 /* ─── Mobile (WhatsApp-style navigation) ─── */
 @media (max-width: 767px) {
   /* Auth */

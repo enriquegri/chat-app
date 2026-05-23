@@ -58,8 +58,9 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		fileType = "image"
 	}
 
+	publicURL := os.Getenv("PUBLIC_URL")
 	jsonResponse(w, map[string]string{
-		"url":       "/uploads/" + filename,
+		"url":       publicURL + "/uploads/" + filename,
 		"file_type": fileType,
 		"name":      header.Filename,
 	}, http.StatusOK)

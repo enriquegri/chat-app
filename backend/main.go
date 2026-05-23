@@ -90,6 +90,8 @@ func main() {
 	api.HandleFunc("/dm", channelHandler.DMList).Methods("GET")
 	api.HandleFunc("/dm/{userId}", channelHandler.DMOpen).Methods("POST")
 	api.HandleFunc("/upload", handlers.UploadHandler).Methods("POST")
+	api.HandleFunc("/search", channelHandler.GlobalSearch).Methods("GET")
+	api.HandleFunc("/link-preview", handlers.LinkPreviewHandler).Methods("GET")
 	api.HandleFunc("/messages/{messageId}/reactions/{emoji}", reactionHandler.Toggle).Methods("POST")
 	api.HandleFunc("/messages/{messageId}/reactions", reactionHandler.List).Methods("GET")
 	api.HandleFunc("/messages/{messageId}", channelHandler.EditMessage).Methods("PUT")

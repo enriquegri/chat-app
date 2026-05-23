@@ -12,6 +12,7 @@ type ReplySnippet struct {
 type Message struct {
 	ID          int           `json:"id"`
 	ChannelID   int           `json:"channel_id"`
+	ChannelName string        `json:"channel_name,omitempty"`
 	UserID      int           `json:"user_id"`
 	Username    string        `json:"username"`
 	AvatarColor string        `json:"avatar_color"`

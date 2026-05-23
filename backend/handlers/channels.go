@@ -165,6 +165,23 @@ func (h *ChannelHandler) UserList(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, users, http.StatusOK)
 }
 
+func (h *ChannelHandler) GlobalSearch(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query().Get("q")
+	if len(q) < 2 {
+		jsonResponse(w, []models.Message{}, http.StatusOK)
+		return
+	}
+	results, err := h.channelSvc.GlobalSearch(getUserID(r), q)
+	if err != nil {
+		jsonError(w, "search failed", http.StatusInternalServerError)
+		return
+	}
+	if results == nil {
+		results = []models.Message{}
+	}
+	jsonResponse(w, results, http.StatusOK)
+}
+
 func (h *ChannelHandler) EditMessage(w http.ResponseWriter, r *http.Request) {
 	messageID, err := strconv.Atoi(mux.Vars(r)["messageId"])
 	if err != nil {

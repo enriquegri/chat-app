@@ -31,7 +31,12 @@ export const channels = {
   create: (data) => api.post('/api/channels', data),
   messages: (id) => api.get(`/api/channels/${id}/messages`),
   search: (id, q) => api.get(`/api/channels/${id}/search?q=${encodeURIComponent(q)}`),
+  globalSearch: (q) => api.get(`/api/search?q=${encodeURIComponent(q)}`),
   join: (id) => api.post(`/api/channels/${id}/join`),
+}
+
+export const linkPreview = {
+  fetch: (url) => api.get(`/api/link-preview?url=${encodeURIComponent(url)}`),
 }
 
 export const dm = {

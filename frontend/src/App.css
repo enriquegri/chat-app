@@ -1163,6 +1163,22 @@ body {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
+
+  /* Global search: full-screen modal on mobile */
+  .gs-modal {
+    border-radius: 0;
+    height: 100dvh;
+    max-height: 100dvh;
+    width: 100%;
+  }
+  .gs-backdrop { padding-top: 0; }
+
+  /* Hide sidebar-search-bar text; show icon only */
+  .global-search-bar { display: none; }
+  .sidebar-search-btn { display: flex; }
+
+  /* Link previews: reduce max width */
+  .link-preview { max-width: 100%; }
 }
 
 /* ── Direct Messages ──────────────────────────────────────────── */
@@ -1394,3 +1410,242 @@ body {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
+
+/* ── Global Search ─────────────────────────────────────────────── */
+.sidebar-header { position: relative; }
+.sidebar-header-actions { display: flex; align-items: center; gap: .4rem; }
+.sidebar-search-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: .25rem;
+  border-radius: var(--radius-sm);
+  display: none; /* shown only on mobile */
+}
+
+/* Clickable search bar in sidebar */
+.global-search-bar {
+  align-items: center;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: flex;
+  gap: .5rem;
+  margin: .5rem .75rem .25rem;
+  padding: .4rem .65rem;
+  width: calc(100% - 1.5rem);
+  transition: border-color .15s;
+}
+.global-search-bar:hover { border-color: var(--accent-border); }
+
+.global-search-icon { font-size: .85rem; }
+.global-search-placeholder {
+  color: var(--text-muted);
+  flex: 1;
+  font-size: var(--text-sm);
+  text-align: left;
+}
+.global-search-shortcut {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: .65rem;
+  padding: .05rem .3rem;
+}
+
+/* Modal */
+.gs-backdrop {
+  align-items: flex-start;
+  background: rgba(0,0,0,.6);
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  left: 0;
+  padding-top: 10vh;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 200;
+  backdrop-filter: blur(2px);
+}
+
+.gs-modal {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  max-height: 70vh;
+  overflow: hidden;
+  width: min(640px, calc(100vw - 2rem));
+}
+
+.gs-header {
+  align-items: center;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  gap: .5rem;
+  padding: .75rem 1rem;
+}
+.gs-icon { font-size: 1.1rem; flex-shrink: 0; }
+.gs-input {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  flex: 1;
+  font-size: var(--text-base);
+  outline: none;
+}
+.gs-input::placeholder { color: var(--text-muted); }
+.gs-spinner { color: var(--text-muted); font-size: .85rem; }
+.gs-close {
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: .9rem;
+  padding: .2rem .4rem;
+}
+.gs-close:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+.gs-results {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow-y: auto;
+  padding: .4rem 0;
+}
+
+.gs-result {
+  align-items: flex-start;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+  padding: .6rem 1rem;
+  text-align: left;
+  transition: background .1s;
+  width: 100%;
+}
+.gs-result:hover { background: var(--bg-hover); }
+
+.gs-result-meta {
+  align-items: center;
+  display: flex;
+  gap: .6rem;
+  font-size: var(--text-xs);
+}
+.gs-channel { color: var(--accent); font-weight: 600; }
+.gs-author { font-weight: 500; }
+.gs-date { color: var(--text-muted); margin-left: auto; }
+
+.gs-result-content {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gs-result-content mark {
+  background: var(--accent-subtle);
+  border-radius: 2px;
+  color: var(--accent);
+  padding: 0 2px;
+}
+.gs-attachment { color: var(--text-muted); }
+
+.gs-empty, .gs-hint {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  padding: 1.5rem 1rem;
+  text-align: center;
+}
+
+/* ── Link Preview ──────────────────────────────────────────────── */
+.link-preview {
+  align-items: flex-start;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: inherit;
+  display: flex;
+  gap: .75rem;
+  margin-top: .5rem;
+  max-width: 480px;
+  overflow: hidden;
+  position: relative;
+  text-decoration: none;
+  transition: border-color .15s;
+}
+.link-preview:hover { border-color: var(--accent); }
+
+.link-preview-img {
+  flex-shrink: 0;
+  height: 72px;
+  object-fit: cover;
+  width: 72px;
+}
+
+.link-preview-body {
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+  overflow: hidden;
+  padding: .5rem .5rem .5rem 0;
+  flex: 1;
+}
+
+.link-preview-site {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  text-transform: lowercase;
+}
+
+.link-preview-title {
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link-preview-desc {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.link-preview-dismiss {
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: .75rem;
+  line-height: 1;
+  opacity: 0;
+  padding: .25rem;
+  position: absolute;
+  right: .25rem;
+  top: .25rem;
+  transition: opacity .15s;
+}
+.link-preview:hover .link-preview-dismiss { opacity: 1; }
+.link-preview-dismiss:hover { background: var(--bg-hover); color: var(--text-primary); }

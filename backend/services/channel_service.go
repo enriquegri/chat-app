@@ -306,6 +306,44 @@ func (s *ChannelService) SaveMessage(msg *models.Message) error {
 	return nil
 }
 
+// GlobalSearch busca mensajes en todos los canales a los que pertenece el usuario.
+// Como el contenido está cifrado se desencripta en memoria.
+func (s *ChannelService) GlobalSearch(userID int, query string) ([]models.Message, error) {
+	rows, err := s.db.Query(`
+		SELECT m.id, m.channel_id, c.name, m.user_id, u.username, u.avatar_color,
+		       m.content, COALESCE(m.file_url,''), COALESCE(m.file_type,''), m.created_at, m.edited_at
+		FROM messages m
+		JOIN users u ON m.user_id = u.id
+		JOIN channels c ON m.channel_id = c.id
+		JOIN channel_members cm ON c.id = cm.channel_id AND cm.user_id = ?
+		ORDER BY m.created_at DESC
+		LIMIT 2000`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	query = strings.ToLower(query)
+	var matches []models.Message
+	for rows.Next() {
+		var msg models.Message
+		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.ChannelName, &msg.UserID, &msg.Username,
+			&msg.AvatarColor, &msg.Content, &msg.FileURL, &msg.FileType, &msg.CreatedAt, &msg.EditedAt); err != nil {
+			return nil, err
+		}
+		msg.Content = s.crypto.Decrypt(msg.Content)
+		msg.FileURL = s.crypto.Decrypt(msg.FileURL)
+		if strings.Contains(strings.ToLower(msg.Content), query) ||
+			strings.Contains(strings.ToLower(msg.Username), query) {
+			matches = append(matches, msg)
+			if len(matches) >= 50 {
+				break
+			}
+		}
+	}
+	return matches, nil
+}
+
 // GetReplySnippet obtiene el extracto de un mensaje para mostrar en la respuesta.
 func (s *ChannelService) GetReplySnippet(messageID int) *models.ReplySnippet {
 	var snippet models.ReplySnippet

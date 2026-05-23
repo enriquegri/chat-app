@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { channels as channelsApi, reactions as reactionsApi, uploads, dm as dmApi, users as usersApi } from '../services/api'
 import { useWebSocket } from '../hooks/useWebSocket'
 import Message from '../components/Message'
+import GlobalSearch from '../components/GlobalSearch'
 
 const TYPING_TIMEOUT = 2000
 
@@ -30,6 +31,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const [onlineCount, setOnlineCount] = useState(0)
   const [newChannelPrivate, setNewChannelPrivate] = useState(false)
   const [replyingTo, setReplyingTo] = useState(null)
+  const [showGlobalSearch, setShowGlobalSearch] = useState(false)
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
   const composerInputRef = useRef(null)
@@ -38,6 +40,18 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const activeChannelRef = useRef(null)
 
   useEffect(() => { activeChannelRef.current = activeChannel }, [activeChannel])
+
+  // Ctrl+K / Cmd+K opens global search
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault()
+        setShowGlobalSearch(v => !v)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -297,6 +311,16 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     setSearchResults([])
   }
 
+  const jumpToChannel = (channelId, channelName) => {
+    const ch = channelList.find(c => c.id === channelId)
+    if (ch) {
+      selectChannel(ch)
+    } else {
+      // Channel not in list yet — create a stub to navigate there
+      selectChannel({ id: channelId, name: channelName })
+    }
+  }
+
   const typingText = typingUsers.length === 1
     ? `${typingUsers[0]} is typing...`
     : typingUsers.length > 1
@@ -308,8 +332,16 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
       <aside className="sidebar">
         <div className="sidebar-header">
           <h2>ChatApp</h2>
-          <button className="logout-btn" onClick={onLogout}>Exit</button>
+          <div className="sidebar-header-actions">
+            <button className="sidebar-search-btn" onClick={() => setShowGlobalSearch(true)} title="Buscar (Ctrl+K)">🔍</button>
+            <button className="logout-btn" onClick={onLogout}>Exit</button>
+          </div>
         </div>
+        <button className="global-search-bar" onClick={() => setShowGlobalSearch(true)}>
+          <span className="global-search-icon">🔍</span>
+          <span className="global-search-placeholder">Buscar…</span>
+          <span className="global-search-shortcut">⌘K</span>
+        </button>
 
         <div className="channels-section">
           <div className="channels-header">
@@ -399,6 +431,13 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
           )}
         </div>
       </aside>
+
+      {showGlobalSearch && (
+        <GlobalSearch
+          onClose={() => setShowGlobalSearch(false)}
+          onJumpToChannel={jumpToChannel}
+        />
+      )}
 
       <main className="chat-main">
         {activeChannel ? (

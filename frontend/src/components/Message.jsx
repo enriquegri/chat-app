@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { reactions as reactionsApi, messages as messagesApi } from '../services/api'
+import LinkPreview from './LinkPreview'
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥']
 
@@ -194,6 +195,7 @@ export default function Message({ message, currentUserId, currentUserRole, curre
             message.content && <span className="msg-text">{renderText(message.content, currentUsername)}</span>
           )}
           {isCompact && message.edited_at && !editing && <span className="msg-edited">(editado)</span>}
+          {!editing && message.content && <LinkPreview text={message.content} />}
         </div>
 
         {Object.keys(grouped).length > 0 && (

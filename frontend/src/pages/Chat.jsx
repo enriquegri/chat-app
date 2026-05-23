@@ -234,6 +234,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
         {activeChannel ? (
           <>
             <div className="chat-header">
+              <button className="mobile-back" onClick={() => setActiveChannel(null)}>←</button>
               <div className="chat-header-title">
                 <h3># {activeChannel.name}</h3>
                 {activeChannel.description && <p>{activeChannel.description}</p>}

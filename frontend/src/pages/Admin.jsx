@@ -78,6 +78,7 @@ export default function Admin({ user, onBack }) {
         {error && <div className="admin-error">{error}</div>}
 
         {!loading && tab === 'users' && (
+          <div className="admin-table-wrap">
           <table className="admin-table">
             <thead>
               <tr>
@@ -122,9 +123,11 @@ export default function Admin({ user, onBack }) {
               ))}
             </tbody>
           </table>
+          </div>
         )}
 
         {!loading && tab === 'channels' && (
+          <div className="admin-table-wrap">
           <table className="admin-table">
             <thead>
               <tr>
@@ -160,6 +163,7 @@ export default function Admin({ user, onBack }) {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

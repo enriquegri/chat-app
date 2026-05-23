@@ -20,6 +20,8 @@ type WSMessage struct {
 	ChannelID int     `json:"channel_id,omitempty"`
 	Content   string  `json:"content,omitempty"`
 	Username  string  `json:"username,omitempty"`
+	FileURL   string  `json:"file_url,omitempty"`
+	FileType  string  `json:"file_type,omitempty"`
 }
 
 type Reaction struct {

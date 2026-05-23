@@ -154,6 +154,8 @@ func (c *Client) ReadPump(hub *Hub, channelSvc *ChannelService) {
 				UserID:    c.ID,
 				Username:  c.Username,
 				Content:   wsMsg.Content,
+				FileURL:   wsMsg.FileURL,
+				FileType:  wsMsg.FileType,
 			}
 			if err := channelSvc.SaveMessage(&msg); err != nil {
 				log.Printf("Error saving message: %v", err)

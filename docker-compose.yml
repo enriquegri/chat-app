@@ -34,6 +34,8 @@ services:
       PORT: 8080
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       PUBLIC_URL: ${PUBLIC_URL:-https://api.enriquegr.dev}
+    volumes:
+      - uploads_data:/app/uploads
     depends_on:
       mariadb:
         condition: service_healthy
@@ -53,6 +55,7 @@ services:
 
 volumes:
   mariadb_data:
+  uploads_data:
 
 networks:
   default:

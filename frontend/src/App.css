@@ -638,6 +638,14 @@ body {
 .edit-hint { color: var(--text-muted); font-size: var(--text-xs); }
 .msg-edited { color: var(--text-muted); font-size: var(--text-xs); margin-left: .35rem; }
 
+/* ── Load-more indicator (pagination) ───────────────────────── */
+.load-more-indicator {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  padding: .75rem 1.25rem;
+  text-align: center;
+}
+
 /* ── Date separator ──────────────────────────────────────────── */
 .date-separator {
   display: flex; align-items: center; gap: .75rem;

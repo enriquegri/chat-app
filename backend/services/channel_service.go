@@ -184,11 +184,23 @@ func (s *ChannelService) JoinChannel(channelID, userID int) error {
 	return err
 }
 
-// reactionsByMsgID ejecuta una query que devuelve filas (id, message_id, user_id, username, emoji)
-// y las agrupa en un map[messageID][]Reaction. Se usa internamente para incluir reactions
-// en la respuesta de mensajes sin hacer N queries adicionales.
-func (s *ChannelService) reactionsByMsgID(query string, args ...any) map[int][]models.Reaction {
-	rows, err := s.db.Query(query, args...)
+// reactionsByMsgIDs obtiene todas las reactions para una lista concreta de message IDs
+// en una sola query usando IN (?,...). Más preciso que filtrar por canal/parent cuando
+// ya tenemos los IDs exactos de los mensajes devueltos.
+func (s *ChannelService) reactionsByMsgIDs(ids []int) map[int][]models.Reaction {
+	if len(ids) == 0 {
+		return nil
+	}
+	placeholders := strings.Repeat("?,", len(ids))
+	placeholders = placeholders[:len(placeholders)-1]
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		args[i] = id
+	}
+	rows, err := s.db.Query(fmt.Sprintf(`
+		SELECT r.id, r.message_id, r.user_id, u.username, r.emoji
+		FROM reactions r JOIN users u ON r.user_id = u.id
+		WHERE r.message_id IN (%s)`, placeholders), args...)
 	if err != nil {
 		return nil
 	}
@@ -204,25 +216,44 @@ func (s *ChannelService) reactionsByMsgID(query string, args ...any) map[int][]m
 	return result
 }
 
-func (s *ChannelService) GetMessages(channelID, limit int) ([]models.Message, error) {
-	// Solo mensajes top-level (sin reply_to_id) + contador de respuestas
-	rows, err := s.db.Query(`
-		SELECT m.id, m.channel_id, m.user_id, u.username, u.avatar_color,
-		       m.content, COALESCE(m.file_url,''), COALESCE(m.file_type,''), m.created_at, m.edited_at,
-		       COUNT(r.id) as reply_count
-		FROM messages m
-		JOIN users u ON m.user_id = u.id
-		LEFT JOIN messages r ON r.reply_to_id = m.id
-		WHERE m.channel_id = ? AND m.reply_to_id IS NULL
-		GROUP BY m.id
-		ORDER BY m.created_at DESC
-		LIMIT ?`, channelID, limit)
+// GetMessages devuelve hasta `limit` mensajes top-level de un canal en orden ASC.
+// Si beforeID > 0, sólo devuelve mensajes con id < beforeID (paginación hacia atrás).
+func (s *ChannelService) GetMessages(channelID, limit, beforeID int) ([]models.Message, error) {
+	var rows *sql.Rows
+	var err error
+
+	if beforeID > 0 {
+		rows, err = s.db.Query(`
+			SELECT m.id, m.channel_id, m.user_id, u.username, u.avatar_color,
+			       m.content, COALESCE(m.file_url,''), COALESCE(m.file_type,''), m.created_at, m.edited_at,
+			       COUNT(r.id) as reply_count
+			FROM messages m
+			JOIN users u ON m.user_id = u.id
+			LEFT JOIN messages r ON r.reply_to_id = m.id
+			WHERE m.channel_id = ? AND m.reply_to_id IS NULL AND m.id < ?
+			GROUP BY m.id
+			ORDER BY m.created_at DESC
+			LIMIT ?`, channelID, beforeID, limit)
+	} else {
+		rows, err = s.db.Query(`
+			SELECT m.id, m.channel_id, m.user_id, u.username, u.avatar_color,
+			       m.content, COALESCE(m.file_url,''), COALESCE(m.file_type,''), m.created_at, m.edited_at,
+			       COUNT(r.id) as reply_count
+			FROM messages m
+			JOIN users u ON m.user_id = u.id
+			LEFT JOIN messages r ON r.reply_to_id = m.id
+			WHERE m.channel_id = ? AND m.reply_to_id IS NULL
+			GROUP BY m.id
+			ORDER BY m.created_at DESC
+			LIMIT ?`, channelID, limit)
+	}
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
 	var messages []models.Message
+	var ids []int
 	for rows.Next() {
 		var msg models.Message
 		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.AvatarColor,
@@ -234,20 +265,21 @@ func (s *ChannelService) GetMessages(channelID, limit int) ([]models.Message, er
 		msg.FileURL = s.crypto.Decrypt(msg.FileURL)
 		msg.Reactions = []models.Reaction{}
 		messages = append(messages, msg)
+		ids = append(ids, msg.ID)
 	}
 
 	// Invertir (estaban DESC, los queremos ASC)
 	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
 		messages[i], messages[j] = messages[j], messages[i]
 	}
+	if i, j := 0, len(ids)-1; i < j {
+		for ; i < j; i, j = i+1, j-1 {
+			ids[i], ids[j] = ids[j], ids[i]
+		}
+	}
 
-	// Una sola query para todas las reactions del canal — O(1) en vez de O(N)
-	reactionMap := s.reactionsByMsgID(`
-		SELECT r.id, r.message_id, r.user_id, u.username, r.emoji
-		FROM reactions r
-		JOIN users u ON r.user_id = u.id
-		JOIN messages m ON r.message_id = m.id
-		WHERE m.channel_id = ? AND m.reply_to_id IS NULL`, channelID)
+	// Una sola query para las reactions de exactamente estos mensajes
+	reactionMap := s.reactionsByMsgIDs(ids)
 	for i := range messages {
 		if rxs, ok := reactionMap[messages[i].ID]; ok {
 			messages[i].Reactions = rxs
@@ -272,6 +304,7 @@ func (s *ChannelService) GetThreadMessages(parentID int) ([]models.Message, erro
 	defer rows.Close()
 
 	var messages []models.Message
+	var ids []int
 	for rows.Next() {
 		var msg models.Message
 		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.AvatarColor,
@@ -284,15 +317,10 @@ func (s *ChannelService) GetThreadMessages(parentID int) ([]models.Message, erro
 		msg.ReplyToID = &replyToIDVal
 		msg.Reactions = []models.Reaction{}
 		messages = append(messages, msg)
+		ids = append(ids, msg.ID)
 	}
 
-	// Una sola query para las reactions de todas las replies del hilo
-	reactionMap := s.reactionsByMsgID(`
-		SELECT r.id, r.message_id, r.user_id, u.username, r.emoji
-		FROM reactions r
-		JOIN users u ON r.user_id = u.id
-		JOIN messages m ON r.message_id = m.id
-		WHERE m.reply_to_id = ?`, parentID)
+	reactionMap := s.reactionsByMsgIDs(ids)
 	for i := range messages {
 		if rxs, ok := reactionMap[messages[i].ID]; ok {
 			messages[i].Reactions = rxs

@@ -37,7 +37,7 @@ export const twofa = {
 export const channels = {
   list: () => api.get('/api/channels'),
   create: (data) => api.post('/api/channels', data),
-  messages: (id) => api.get(`/api/channels/${id}/messages`),
+  messages: (id, params = {}) => api.get(`/api/channels/${id}/messages`, { params }),
   search: (id, q) => api.get(`/api/channels/${id}/search?q=${encodeURIComponent(q)}`),
   globalSearch: (q) => api.get(`/api/search?q=${encodeURIComponent(q)}`),
   join: (id) => api.post(`/api/channels/${id}/join`),

@@ -65,15 +65,21 @@ func (h *ChannelHandler) Messages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	messages, err := h.channelSvc.GetMessages(channelID, 50)
+	const pageSize = 50
+	beforeID, _ := strconv.Atoi(r.URL.Query().Get("before_id"))
+
+	msgs, err := h.channelSvc.GetMessages(channelID, pageSize, beforeID)
 	if err != nil {
 		jsonError(w, "error fetching messages", http.StatusInternalServerError)
 		return
 	}
-	if messages == nil {
-		messages = []models.Message{}
+	if msgs == nil {
+		msgs = []models.Message{}
 	}
-	jsonResponse(w, messages, http.StatusOK)
+	jsonResponse(w, map[string]any{
+		"messages": msgs,
+		"has_more": len(msgs) == pageSize,
+	}, http.StatusOK)
 }
 
 func (h *ChannelHandler) Search(w http.ResponseWriter, r *http.Request) {

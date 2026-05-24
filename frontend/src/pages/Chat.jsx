@@ -12,7 +12,9 @@ const TYPING_TIMEOUT = 2000
 const LS_MSG_KEY    = 'chatapp_msg_v1'
 const LS_SCROLL_KEY = 'chatapp_scroll_v1'
 const LS_ACTIVE_KEY = 'chatapp_active_ch'
-const MAX_MSG_PER_CH = 120   // cap per channel to stay well under the 5 MB quota
+const LS_ONLINE_KEY = 'chatapp_online_v1'
+const MAX_MSG_PER_CH = 200   // cap per channel to stay well under the 5 MB quota
+const PAGE_SIZE = 50
 
 function lsGet(key) {
   try { return JSON.parse(localStorage.getItem(key)) } catch { return null }
@@ -77,6 +79,13 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const isInitialLoad = useRef(false)
   // Suppresses saving scroll position during programmatic scroll
   const suppressScrollSave = useRef(false)
+  // Pagination
+  const hasMoreRef = useRef(false)          // whether older messages exist
+  const loadingMoreRef = useRef(false)      // prevents concurrent fetches
+  const oldestMsgIdRef = useRef(null)       // ID of the top-most loaded message
+  const [loadingMore, setLoadingMore] = useState(false)
+  // Online count cache: channelId → count (persisted to localStorage)
+  const onlineCacheRef = useRef(lsGet(LS_ONLINE_KEY) || {})
 
   useEffect(() => { activeChannelRef.current = activeChannel }, [activeChannel])
   useEffect(() => { activeThreadRef.current = activeThread }, [activeThread])
@@ -219,6 +228,11 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   }, [updateCache])
 
   const handleOnlineUpdate = useCallback((count) => {
+    const chId = activeChannelRef.current?.id
+    if (chId) {
+      onlineCacheRef.current[String(chId)] = count
+      lsSet(LS_ONLINE_KEY, onlineCacheRef.current)
+    }
     setOnlineCount(count)
   }, [])
 
@@ -234,15 +248,22 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     const container = messagesContainerRef.current
     if (!container) return
     const onScroll = () => {
-      const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight
+      const { scrollTop, scrollHeight, clientHeight } = container
+      const distFromBottom = scrollHeight - scrollTop - clientHeight
       setShowScrollBtn(distFromBottom > 300)
+
+      // Trigger pagination when near the top
+      if (scrollTop < 200 && !loadingMoreRef.current && hasMoreRef.current) {
+        loadMoreMessages()
+      }
+
       // Persist scroll state so we can restore it when coming back to this channel
       if (!suppressScrollSave.current) {
         const chId = activeChannelRef.current?.id
         if (chId) {
           scrollState.current.set(String(chId), {
             atBottom: distFromBottom < 100,
-            scrollTop: container.scrollTop,
+            scrollTop,
           })
           persistScroll()
         }
@@ -250,7 +271,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     }
     container.addEventListener('scroll', onScroll)
     return () => container.removeEventListener('scroll', onScroll)
-  }, [activeChannel]) // re-run when channel changes so we always have a live listener
+  }, [activeChannel, loadMoreMessages]) // re-run when channel changes so we always have a live listener
 
   useEffect(() => {
     channelsApi.list().then(({ data }) => {
@@ -278,12 +299,22 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     const cached = messageCache.current.get(chKey)
     setMessages(cached ?? [])
 
-    // Background refresh — always fetch fresh from server
-    // reactions already come embedded in each message (no N+1 requests)
+    // Restore online count from cache immediately
+    setOnlineCount(onlineCacheRef.current[chKey] ?? 0)
+
+    // Pagination state: assume there may be more until the server tells us otherwise
+    hasMoreRef.current = true
+    loadingMoreRef.current = false
+    oldestMsgIdRef.current = cached?.[0]?.id ?? null
+
+    // Background refresh — reactions embedded, no N+1 requests
     channelsApi.messages(activeChannel.id).then(({ data }) => {
+      const fresh = (data.messages || []).map(m => ({ ...m, reactions: m.reactions ?? [] }))
+      hasMoreRef.current = data.has_more
+      oldestMsgIdRef.current = fresh[0]?.id ?? null
+
       setMessages(prev => {
         const temps = prev.filter(m => m._temp)
-        const fresh = data.map(m => ({ ...m, reactions: m.reactions ?? [] }))
         const merged = [...fresh, ...temps]
         messageCache.current.set(chKey, fresh)
         persistCache()
@@ -419,6 +450,43 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     )
   }
 
+  // Cargar mensajes más antiguos (scroll hacia arriba — paginación)
+  const loadMoreMessages = useCallback(async () => {
+    if (loadingMoreRef.current || !hasMoreRef.current) return
+    const chId = activeChannelRef.current?.id
+    if (!chId || !oldestMsgIdRef.current) return
+
+    loadingMoreRef.current = true
+    setLoadingMore(true)
+
+    const container = messagesContainerRef.current
+    const prevScrollHeight = container?.scrollHeight ?? 0
+
+    try {
+      const { data } = await channelsApi.messages(chId, { before_id: oldestMsgIdRef.current })
+      const older = (data.messages || []).map(m => ({ ...m, reactions: m.reactions ?? [] }))
+
+      hasMoreRef.current = data.has_more
+      if (older.length > 0) oldestMsgIdRef.current = older[0].id
+
+      setMessages(prev => {
+        const merged = [...older, ...prev]
+        const key = String(chId)
+        messageCache.current.set(key, merged.slice(-MAX_MSG_PER_CH))
+        persistCache()
+        return merged
+      })
+
+      // Mantener la posición visual: compensar la altura añadida arriba
+      requestAnimationFrame(() => {
+        if (container) container.scrollTop += container.scrollHeight - prevScrollHeight
+      })
+    } catch {}
+
+    loadingMoreRef.current = false
+    setLoadingMore(false)
+  }, [persistCache])
+
   // Prefetch messages on hover (200ms delay to avoid spurious loads)
   const prefetchChannel = useCallback((channelId) => {
     const key = String(channelId)
@@ -429,7 +497,8 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
       if (messageCache.current.has(key)) return
       try {
         const { data } = await channelsApi.messages(channelId)
-        messageCache.current.set(key, data.map(m => ({ ...m, reactions: [] })))
+        const msgs = (data.messages || []).map(m => ({ ...m, reactions: m.reactions ?? [] }))
+        messageCache.current.set(key, msgs)
         persistCache()
       } catch {}
     }, 200)
@@ -715,6 +784,9 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
             )}
 
             <div className="messages-container" ref={messagesContainerRef}>
+              {loadingMore && (
+                <div className="load-more-indicator">Cargando mensajes anteriores…</div>
+              )}
               {messages.map((msg, i) => {
                 const prev = messages[i - 1]
                 const isCompact = prev

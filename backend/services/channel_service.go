@@ -226,25 +226,21 @@ func (s *ChannelService) GetMessages(channelID, limit, beforeID int) ([]models.M
 		rows, err = s.db.Query(`
 			SELECT m.id, m.channel_id, m.user_id, u.username, u.avatar_color,
 			       m.content, COALESCE(m.file_url,''), COALESCE(m.file_type,''), m.created_at, m.edited_at,
-			       COUNT(r.id) as reply_count
-			FROM messages m
+			       (SELECT COUNT(*) FROM messages r WHERE r.reply_to_id = m.id) as reply_count
+			FROM messages m FORCE INDEX (idx_channel_reply_id)
 			JOIN users u ON m.user_id = u.id
-			LEFT JOIN messages r ON r.reply_to_id = m.id
 			WHERE m.channel_id = ? AND m.reply_to_id IS NULL AND m.id < ?
-			GROUP BY m.id
-			ORDER BY m.created_at DESC
+			ORDER BY m.id DESC
 			LIMIT ?`, channelID, beforeID, limit)
 	} else {
 		rows, err = s.db.Query(`
 			SELECT m.id, m.channel_id, m.user_id, u.username, u.avatar_color,
 			       m.content, COALESCE(m.file_url,''), COALESCE(m.file_type,''), m.created_at, m.edited_at,
-			       COUNT(r.id) as reply_count
-			FROM messages m
+			       (SELECT COUNT(*) FROM messages r WHERE r.reply_to_id = m.id) as reply_count
+			FROM messages m FORCE INDEX (idx_channel_reply_id)
 			JOIN users u ON m.user_id = u.id
-			LEFT JOIN messages r ON r.reply_to_id = m.id
 			WHERE m.channel_id = ? AND m.reply_to_id IS NULL
-			GROUP BY m.id
-			ORDER BY m.created_at DESC
+			ORDER BY m.id DESC
 			LIMIT ?`, channelID, limit)
 	}
 	if err != nil {

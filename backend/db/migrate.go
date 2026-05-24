@@ -28,6 +28,8 @@ func RunMigrations(database *sql.DB) {
 				FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
 				UNIQUE KEY uq_user_endpoint (user_id, endpoint(255))
 			)`},
+		{"add_idx_reply_to_id", `ALTER TABLE messages ADD INDEX IF NOT EXISTS idx_reply_to_id (reply_to_id)`},
+		{"add_idx_channel_reply_id", `ALTER TABLE messages ADD INDEX IF NOT EXISTS idx_channel_reply_id (channel_id, reply_to_id, id)`},
 	}
 
 	for _, m := range migrations {

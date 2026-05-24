@@ -337,7 +337,8 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     const chKey = String(activeChannel.id)
     const cached = messageCache.current.get(chKey)
     pendingScrollRestore.current = true
-    setMessages(cached ?? [])
+    suppressScrollSave.current = true   // evita que el scroll listener sobreescriba
+    setMessages(cached ?? [])           // la posición guardada antes de restaurarla
 
     // Restore online count from cache immediately
     setOnlineCount(onlineCacheRef.current[chKey] ?? 0)

@@ -11,7 +11,7 @@ No message caps. No paywalls. No MongoDB. Runs on a $6/month VPS.
 [![Go](https://img.shields.io/badge/Go-1.22-00ADD8?logo=go)](https://go.dev)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev)
 
-![Chat interface](.github/assets/screenshot-chat.svg)
+![Chat interface](.github/assets/screenshot-chat.png)
 
 </div>
 
@@ -49,7 +49,7 @@ Self-hosted chat tools tend to fall into two traps: too heavy to run on affordab
 
 ### Voice calls
 
-![Voice call panel](.github/assets/screenshot-voice.svg)
+![Voice call panel](.github/assets/screenshot-voice.png)
 
 Each participant uploads one audio stream to your LiveKit server, which forwards it to everyone else — no mesh overhead, no per-user upload scaling. The audio never leaves your infrastructure.
 

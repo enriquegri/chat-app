@@ -9,8 +9,8 @@ import Thread from '../components/Thread'
 const TYPING_TIMEOUT = 2000
 
 // ── localStorage persistence ──────────────────────────────────────────────────
-const LS_MSG_KEY    = 'chatapp_msg_v1'
-const LS_SCROLL_KEY = 'chatapp_scroll_v1'
+const LS_MSG_KEY    = 'chatapp_msg_v2'
+const LS_SCROLL_KEY = 'chatapp_scroll_v2'
 const LS_ACTIVE_KEY = 'chatapp_active_ch'
 const LS_ONLINE_KEY = 'chatapp_online_v1'
 const MAX_MSG_PER_CH = 200   // cap per channel to stay well under the 5 MB quota
@@ -346,20 +346,32 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     oldestMsgIdRef.current = cached?.[0]?.id ?? null
 
     // Background refresh — reactions embedded, no N+1 requests
-    channelsApi.messages(activeChannel.id).then(({ data }) => {
+    const applyFreshMessages = (data, key) => {
       const fresh = (data.messages || []).map(m => ({ ...m, reactions: m.reactions ?? [] }))
       hasMoreRef.current = data.has_more
       oldestMsgIdRef.current = fresh[0]?.id ?? null
-
       setMessages(prev => {
         const temps = prev.filter(m => m._temp)
         const merged = [...fresh, ...temps]
-        messageCache.current.set(chKey, fresh)
+        messageCache.current.set(key, fresh)
         persistCache()
         return merged
       })
-    })
-  }, [activeChannel])
+    }
+
+    channelsApi.messages(activeChannel.id)
+      .then(({ data }) => applyFreshMessages(data, chKey))
+      .catch(() => {
+        // Retry once after 2 s (handles CORS-preflight race on first load)
+        const retryId = setTimeout(() => {
+          if (activeChannelRef.current?.id !== activeChannel.id) return
+          channelsApi.messages(activeChannel.id)
+            .then(({ data }) => applyFreshMessages(data, chKey))
+            .catch(() => {})
+        }, 2000)
+        return () => clearTimeout(retryId)
+      })
+  }, [activeChannel, persistCache])
 
   useEffect(() => {
     const container = messagesContainerRef.current

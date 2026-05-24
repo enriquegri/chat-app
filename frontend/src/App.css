@@ -399,7 +399,7 @@ body {
 .search-result-time { color: var(--text-muted); font-size: var(--text-xs); white-space: nowrap; }
 
 /* ── Messages feed ────────────────────────────────────────────── */
-.messages-container { flex: 1; overflow-y: auto; padding: 1rem 0; display: flex; flex-direction: column; }
+.messages-container { flex: 1; overflow-y: auto; padding: 1rem 0; display: flex; flex-direction: column; overflow-anchor: none; }
 
 .msg-row {
   display: grid;

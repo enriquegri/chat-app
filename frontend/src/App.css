@@ -46,13 +46,13 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
   background: var(--bg-base);
   color: var(--text-primary);
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   font-size: var(--text-base);
   line-height: 1.5;
 }
 
-#root { height: 100vh; display: flex; flex-direction: column; }
+#root { height: 100dvh; display: flex; flex-direction: column; }
 
 .loading { display: flex; align-items: center; justify-content: center; height: 100vh; color: var(--text-muted); font-size: var(--text-sm); }
 
@@ -1009,22 +1009,30 @@ body {
 /* Mobile back button — hidden on desktop, shown via media query */
 .mobile-back { display: none; }
 
-/* Safe area insets (notch, home bar) — apply globally, zero on desktop */
-.sidebar-header {
-  padding-top: max(1rem, env(safe-area-inset-top, 0px));
+/* ── Safe area variables ────────────────────────────────────────────
+   viewport-fit=cover paints the app behind the notch and home bar.
+   Define the insets once as variables; apply them to every element
+   that sits at a physical screen edge so nothing is ever occluded.
+   On desktop env() returns 0px, so max(base, 0) = base: no change.
+   Add new full-screen surfaces here — never repeat env() elsewhere. */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
 }
-.chat-header {
-  padding-top: max(.75rem, env(safe-area-inset-top, 0px));
-}
-.admin-header {
-  padding-top: max(.875rem, env(safe-area-inset-top, 0px));
-}
-.profile-header {
-  padding-top: max(.875rem, env(safe-area-inset-top, 0px));
-}
-.composer {
-  padding-bottom: max(.75rem, env(safe-area-inset-bottom, 0px));
-}
+
+/* Top-edge surfaces (status bar / notch) */
+.sidebar-header  { padding-top: max(1rem,    var(--sat)); }
+.chat-header     { padding-top: max(.75rem,  var(--sat)); }
+.admin-header    { padding-top: max(.875rem, var(--sat)); }
+.profile-header  { padding-top: max(.875rem, var(--sat)); }
+.thread-header   { padding-top: max(.875rem, var(--sat)); }
+.gs-header       { padding-top: max(.75rem,  var(--sat)); }
+
+/* Bottom-edge surfaces (home indicator / gesture bar) */
+.composer        { padding-bottom: max(.75rem, var(--sab)); }
+.thread-composer { margin-bottom:  max(.75rem, var(--sab)); }
 
 /* ─── Mobile (WhatsApp-style navigation) ─── */
 @media (max-width: 767px) {
@@ -1133,7 +1141,7 @@ body {
   .admin-layout { height: 100dvh; }
 
   .admin-content {
-    padding-bottom: max(3rem, env(safe-area-inset-bottom, 0px));
+    padding-bottom: max(3rem, var(--sab));
   }
 
   .admin-header {

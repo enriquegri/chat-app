@@ -12,13 +12,21 @@ function App() {
   const { user, loading, login, register, logout, updateUser, complete2FA } = useAuth()
   const [view, setView] = useState('login')
   const [page, setPage] = useState('chat') // 'chat' | 'admin' | 'profile'
-  const [registrationEnabled, setRegistrationEnabled] = useState(false)
+  // Initialise from localStorage cache so the login screen renders instantly
+  const [registrationEnabled, setRegistrationEnabled] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('chatapp_reg_status')) ?? false } catch { return false }
+  })
 
   useEffect(() => {
+    // Skip when already authenticated — this flag is only needed on the auth screen
+    if (user) return
     authApi.registrationStatus()
-      .then(({ data }) => setRegistrationEnabled(data.enabled))
-      .catch(() => setRegistrationEnabled(false))
-  }, [])
+      .then(({ data }) => {
+        setRegistrationEnabled(data.enabled)
+        try { localStorage.setItem('chatapp_reg_status', JSON.stringify(data.enabled)) } catch {}
+      })
+      .catch(() => {})   // keep cached value on network error
+  }, [user])
 
   // Handle Android back gesture for admin/profile overlays
   useEffect(() => {

@@ -41,6 +41,13 @@ jobs:
         working-directory: frontend
         run: npx cap sync android
 
+      - name: Add microphone permissions for voice calls
+        working-directory: frontend
+        run: |
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          sed -i 's|</manifest>|    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-permission android:name="android.permission.BLUETOOTH" />\n    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />\n</manifest>|' "$MANIFEST"
+          echo "=== AndroidManifest permissions ===" && grep "uses-permission" "$MANIFEST"
+
       - name: Generate app icons and splash screen
         working-directory: frontend
         run: npx @capacitor/assets generate --android --iconBackgroundColor '#5b5ef4' --iconBackgroundColorDark '#5b5ef4' --splashBackgroundColor '#5b5ef4' --splashBackgroundColorDark '#3a3db8'

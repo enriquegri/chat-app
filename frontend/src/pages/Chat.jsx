@@ -241,6 +241,44 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     loadReactions, handleMessageEdited, handleMessageDeleted, handleOnlineUpdate
   )
 
+  // Cargar mensajes más antiguos (scroll hacia arriba — paginación)
+  // Debe estar definido ANTES del scroll listener que lo referencia en deps
+  const loadMoreMessages = useCallback(async () => {
+    if (loadingMoreRef.current || !hasMoreRef.current) return
+    const chId = activeChannelRef.current?.id
+    if (!chId || !oldestMsgIdRef.current) return
+
+    loadingMoreRef.current = true
+    setLoadingMore(true)
+
+    const container = messagesContainerRef.current
+    const prevScrollHeight = container?.scrollHeight ?? 0
+
+    try {
+      const { data } = await channelsApi.messages(chId, { before_id: oldestMsgIdRef.current })
+      const older = (data.messages || []).map(m => ({ ...m, reactions: m.reactions ?? [] }))
+
+      hasMoreRef.current = data.has_more
+      if (older.length > 0) oldestMsgIdRef.current = older[0].id
+
+      setMessages(prev => {
+        const merged = [...older, ...prev]
+        const key = String(chId)
+        messageCache.current.set(key, merged.slice(-MAX_MSG_PER_CH))
+        persistCache()
+        return merged
+      })
+
+      // Mantener la posición visual: compensar la altura añadida arriba
+      requestAnimationFrame(() => {
+        if (container) container.scrollTop += container.scrollHeight - prevScrollHeight
+      })
+    } catch {}
+
+    loadingMoreRef.current = false
+    setLoadingMore(false)
+  }, [persistCache])
+
   // Scroll listener: show "↓" button + save per-channel scroll position.
   // Depends on activeChannel so it re-runs after the messages-container appears
   // in the DOM (it's not rendered until a channel is selected).
@@ -449,43 +487,6 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
       : [{ channel_id: ch.id, user_id: u.id, username: u.username, avatar_color: u.avatar_color }, ...prev]
     )
   }
-
-  // Cargar mensajes más antiguos (scroll hacia arriba — paginación)
-  const loadMoreMessages = useCallback(async () => {
-    if (loadingMoreRef.current || !hasMoreRef.current) return
-    const chId = activeChannelRef.current?.id
-    if (!chId || !oldestMsgIdRef.current) return
-
-    loadingMoreRef.current = true
-    setLoadingMore(true)
-
-    const container = messagesContainerRef.current
-    const prevScrollHeight = container?.scrollHeight ?? 0
-
-    try {
-      const { data } = await channelsApi.messages(chId, { before_id: oldestMsgIdRef.current })
-      const older = (data.messages || []).map(m => ({ ...m, reactions: m.reactions ?? [] }))
-
-      hasMoreRef.current = data.has_more
-      if (older.length > 0) oldestMsgIdRef.current = older[0].id
-
-      setMessages(prev => {
-        const merged = [...older, ...prev]
-        const key = String(chId)
-        messageCache.current.set(key, merged.slice(-MAX_MSG_PER_CH))
-        persistCache()
-        return merged
-      })
-
-      // Mantener la posición visual: compensar la altura añadida arriba
-      requestAnimationFrame(() => {
-        if (container) container.scrollTop += container.scrollHeight - prevScrollHeight
-      })
-    } catch {}
-
-    loadingMoreRef.current = false
-    setLoadingMore(false)
-  }, [persistCache])
 
   // Prefetch messages on hover (200ms delay to avoid spurious loads)
   const prefetchChannel = useCallback((channelId) => {

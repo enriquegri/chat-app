@@ -181,7 +181,9 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     loadReactions, handleMessageEdited, handleMessageDeleted, handleOnlineUpdate
   )
 
-  // Scroll listener: show "↓" button + save per-channel scroll position
+  // Scroll listener: show "↓" button + save per-channel scroll position.
+  // Depends on activeChannel so it re-runs after the messages-container appears
+  // in the DOM (it's not rendered until a channel is selected).
   useEffect(() => {
     const container = messagesContainerRef.current
     if (!container) return
@@ -201,7 +203,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     }
     container.addEventListener('scroll', onScroll)
     return () => container.removeEventListener('scroll', onScroll)
-  }, [])
+  }, [activeChannel]) // re-run when channel changes so we always have a live listener
 
   useEffect(() => {
     channelsApi.list().then(({ data }) => {
@@ -432,7 +434,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     e.preventDefault()
     if (!newChannel.trim()) return
     const { data } = await channelsApi.create({ name: newChannel.trim(), is_private: newChannelPrivate })
-    setChannelList(prev => [...prev, data])
+    setChannelList(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
     setActiveChannel(data)
     setNewChannel('')
     setNewChannelPrivate(false)

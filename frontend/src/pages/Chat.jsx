@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import { channels as channelsApi, reactions as reactionsApi, uploads, dm as dmApi, users as usersApi } from '../services/api'
 import { useWebSocket } from '../hooks/useWebSocket'
 import { usePushNotifications } from '../hooks/usePushNotifications'
@@ -77,6 +77,10 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const scrollPersistTimer = useRef(null)
   // True right after a channel switch — triggers instant scroll
   const isInitialLoad = useRef(false)
+  // True when fresh API data replaces cache after a channel switch (second setMessages)
+  const pendingScrollRestore = useRef(false)
+  // Stores prevScrollHeight before prepending older messages; useLayoutEffect reads it
+  const prependScrollRef = useRef(null)
   // Suppresses saving scroll position during programmatic scroll
   const suppressScrollSave = useRef(false)
   // Pagination
@@ -252,7 +256,6 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     setLoadingMore(true)
 
     const container = messagesContainerRef.current
-    const prevScrollHeight = container?.scrollHeight ?? 0
 
     try {
       const { data } = await channelsApi.messages(chId, { before_id: oldestMsgIdRef.current })
@@ -261,17 +264,15 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
       hasMoreRef.current = data.has_more
       if (older.length > 0) oldestMsgIdRef.current = older[0].id
 
+      // Captura la altura ANTES del re-render; useLayoutEffect la usa para restaurar
+      prependScrollRef.current = container?.scrollHeight ?? 0
+
       setMessages(prev => {
         const merged = [...older, ...prev]
         const key = String(chId)
         messageCache.current.set(key, merged.slice(-MAX_MSG_PER_CH))
         persistCache()
         return merged
-      })
-
-      // Mantener la posición visual: compensar la altura añadida arriba
-      requestAnimationFrame(() => {
-        if (container) container.scrollTop += container.scrollHeight - prevScrollHeight
       })
     } catch {}
 
@@ -335,6 +336,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     // Show cached messages immediately (zero-latency switch — may be from localStorage)
     const chKey = String(activeChannel.id)
     const cached = messageCache.current.get(chKey)
+    pendingScrollRestore.current = true
     setMessages(cached ?? [])
 
     // Restore online count from cache immediately
@@ -350,6 +352,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
       const fresh = (data.messages || []).map(m => ({ ...m, reactions: m.reactions ?? [] }))
       hasMoreRef.current = data.has_more
       oldestMsgIdRef.current = fresh[0]?.id ?? null
+      pendingScrollRestore.current = true
       setMessages(prev => {
         const temps = prev.filter(m => m._temp)
         const merged = [...fresh, ...temps]
@@ -373,13 +376,25 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
       })
   }, [activeChannel, persistCache])
 
+  // Restaura el scroll sincrónicamente tras prepend de mensajes antiguos,
+  // antes de que el navegador pinte (evita el salto visual).
+  useLayoutEffect(() => {
+    if (prependScrollRef.current === null) return
+    const container = messagesContainerRef.current
+    if (container) {
+      container.scrollTop += container.scrollHeight - prependScrollRef.current
+    }
+    prependScrollRef.current = null
+  }, [messages])
+
   useEffect(() => {
     const container = messagesContainerRef.current
     if (!container || messages.length === 0) return
 
-    if (isInitialLoad.current) {
-      // First render after channel switch: jump instantly (no animation)
+    if (isInitialLoad.current || pendingScrollRestore.current) {
+      // First render after channel switch (or fresh data replacing cache): restore position
       isInitialLoad.current = false
+      pendingScrollRestore.current = false
       const chId = activeChannelRef.current?.id
       const state = chId ? scrollState.current.get(String(chId)) : null
 

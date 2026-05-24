@@ -91,7 +91,6 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   // Online count cache: channelId → count (persisted to localStorage)
   const onlineCacheRef = useRef(lsGet(LS_ONLINE_KEY) || {})
 
-  useEffect(() => { activeChannelRef.current = activeChannel }, [activeChannel])
   useEffect(() => { activeThreadRef.current = activeThread }, [activeThread])
 
   // Ctrl+K / Cmd+K opens global search
@@ -327,6 +326,8 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
 
   useEffect(() => {
     if (!activeChannel) return
+    activeChannelRef.current = activeChannel  // actualizar ANTES de suppressScrollSave
+    suppressScrollSave.current = true         // cerrar la ventana de race condition
     isInitialLoad.current = true
     setTypingUsers([])
     setUnread(0)
@@ -337,8 +338,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     const chKey = String(activeChannel.id)
     const cached = messageCache.current.get(chKey)
     pendingScrollRestore.current = true
-    suppressScrollSave.current = true   // evita que el scroll listener sobreescriba
-    setMessages(cached ?? [])           // la posición guardada antes de restaurarla
+    setMessages(cached ?? [])
 
     // Restore online count from cache immediately
     setOnlineCount(onlineCacheRef.current[chKey] ?? 0)

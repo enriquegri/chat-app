@@ -184,6 +184,26 @@ func (s *ChannelService) JoinChannel(channelID, userID int) error {
 	return err
 }
 
+// reactionsByMsgID ejecuta una query que devuelve filas (id, message_id, user_id, username, emoji)
+// y las agrupa en un map[messageID][]Reaction. Se usa internamente para incluir reactions
+// en la respuesta de mensajes sin hacer N queries adicionales.
+func (s *ChannelService) reactionsByMsgID(query string, args ...any) map[int][]models.Reaction {
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	result := make(map[int][]models.Reaction)
+	for rows.Next() {
+		var r models.Reaction
+		if err := rows.Scan(&r.ID, &r.MessageID, &r.UserID, &r.Username, &r.Emoji); err != nil {
+			continue
+		}
+		result[r.MessageID] = append(result[r.MessageID], r)
+	}
+	return result
+}
+
 func (s *ChannelService) GetMessages(channelID, limit int) ([]models.Message, error) {
 	// Solo mensajes top-level (sin reply_to_id) + contador de respuestas
 	rows, err := s.db.Query(`
@@ -212,12 +232,28 @@ func (s *ChannelService) GetMessages(channelID, limit int) ([]models.Message, er
 		}
 		msg.Content = s.crypto.Decrypt(msg.Content)
 		msg.FileURL = s.crypto.Decrypt(msg.FileURL)
+		msg.Reactions = []models.Reaction{}
 		messages = append(messages, msg)
 	}
 
+	// Invertir (estaban DESC, los queremos ASC)
 	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
 		messages[i], messages[j] = messages[j], messages[i]
 	}
+
+	// Una sola query para todas las reactions del canal — O(1) en vez de O(N)
+	reactionMap := s.reactionsByMsgID(`
+		SELECT r.id, r.message_id, r.user_id, u.username, r.emoji
+		FROM reactions r
+		JOIN users u ON r.user_id = u.id
+		JOIN messages m ON r.message_id = m.id
+		WHERE m.channel_id = ? AND m.reply_to_id IS NULL`, channelID)
+	for i := range messages {
+		if rxs, ok := reactionMap[messages[i].ID]; ok {
+			messages[i].Reactions = rxs
+		}
+	}
+
 	return messages, nil
 }
 
@@ -246,8 +282,23 @@ func (s *ChannelService) GetThreadMessages(parentID int) ([]models.Message, erro
 		msg.FileURL = s.crypto.Decrypt(msg.FileURL)
 		replyToIDVal := parentID
 		msg.ReplyToID = &replyToIDVal
+		msg.Reactions = []models.Reaction{}
 		messages = append(messages, msg)
 	}
+
+	// Una sola query para las reactions de todas las replies del hilo
+	reactionMap := s.reactionsByMsgID(`
+		SELECT r.id, r.message_id, r.user_id, u.username, r.emoji
+		FROM reactions r
+		JOIN users u ON r.user_id = u.id
+		JOIN messages m ON r.message_id = m.id
+		WHERE m.reply_to_id = ?`, parentID)
+	for i := range messages {
+		if rxs, ok := reactionMap[messages[i].ID]; ok {
+			messages[i].Reactions = rxs
+		}
+	}
+
 	return messages, nil
 }
 

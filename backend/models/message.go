@@ -24,6 +24,7 @@ type Message struct {
 	ReplyToID   *int          `json:"reply_to_id,omitempty"`
 	ReplyTo     *ReplySnippet `json:"reply_to,omitempty"`
 	ReplyCount  int           `json:"reply_count,omitempty"`
+	Reactions   []Reaction    `json:"reactions"`
 }
 
 // WSMessage es el formato de mensaje enviado por WebSocket

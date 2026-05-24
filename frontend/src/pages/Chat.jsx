@@ -279,17 +279,16 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     setMessages(cached ?? [])
 
     // Background refresh — always fetch fresh from server
+    // reactions already come embedded in each message (no N+1 requests)
     channelsApi.messages(activeChannel.id).then(({ data }) => {
-      // Merge: keep temp messages that haven't been confirmed yet
       setMessages(prev => {
         const temps = prev.filter(m => m._temp)
-        const fresh = data.map(m => ({ ...m, reactions: [] }))
+        const fresh = data.map(m => ({ ...m, reactions: m.reactions ?? [] }))
         const merged = [...fresh, ...temps]
-        messageCache.current.set(chKey, fresh) // cache without temps
+        messageCache.current.set(chKey, fresh)
         persistCache()
         return merged
       })
-      data.forEach(m => loadReactions(m.id))
     })
   }, [activeChannel])
 

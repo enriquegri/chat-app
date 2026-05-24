@@ -213,6 +213,11 @@ export default function Message({ message, currentUserId, currentUserRole, curre
       </div>
 
       <div className={`msg-actions${showPicker || showMenu ? ' picker-open' : ''}`} ref={pickerRef}>
+        {/* Thread reply — direct icon, one tap on any device */}
+        {!isThreadReply && onOpenThread && (
+          <button className="thread-reply-btn" onClick={handleOpenThread} title="Responder en hilo">💬</button>
+        )}
+
         <button ref={triggerRef} className="reaction-trigger" onClick={handleTogglePicker} title="React">😊</button>
 
         {(canEdit || canDelete) && (
@@ -220,9 +225,6 @@ export default function Message({ message, currentUserId, currentUserRole, curre
             <button className="msg-menu-trigger" onClick={() => setShowMenu(p => !p)} title="More">⋯</button>
             {showMenu && (
               <div className="msg-menu">
-                {!isThreadReply && onOpenThread && (
-                  <button onClick={handleOpenThread}>💬 Responder en hilo</button>
-                )}
                 {canEdit && <button onClick={handleEdit}>✏️ Editar</button>}
                 {canDelete && <button className="danger" onClick={handleDelete}>🗑️ Borrar</button>}
               </div>

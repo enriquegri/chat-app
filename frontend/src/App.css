@@ -543,6 +543,19 @@ body {
 }
 .reaction-trigger:hover { background: var(--bg-hover); }
 
+/* Direct thread-reply icon button in the message toolbar */
+.thread-reply-btn {
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: .9rem;
+  line-height: 1;
+  padding: .15rem .25rem;
+  transition: background .1s;
+}
+.thread-reply-btn:hover { background: var(--bg-hover); }
+
 .emoji-picker {
   position: absolute;
   bottom: calc(100% + 4px);
@@ -1081,14 +1094,14 @@ body {
     margin: .5rem .75rem .75rem;
   }
 
-  /* Reaction trigger: always visible on mobile (no hover needed) */
-  .msg-actions { opacity: 1; }
-  .reaction-trigger { opacity: 1; }
+  /* On touch devices hover doesn't fire — always show message actions */
+  .msg-actions { display: flex; }
 
-  /* Tap targets: buttons at least 44px tall */
+  /* Tap targets: buttons at least 44px */
   .send-btn,
   .attach-btn,
-  .reaction-trigger {
+  .reaction-trigger,
+  .thread-reply-btn {
     min-height: 44px;
     min-width: 44px;
   }
@@ -1963,7 +1976,22 @@ body {
 }
 .thread-count-btn:hover { background: var(--accent-subtle); }
 
-/* Mobile: hide thread panel (too narrow) */
+/* Mobile: thread panel becomes a full-screen overlay (slides over the chat) */
 @media (max-width: 767px) {
-  .thread-panel { display: none; }
+  .thread-panel {
+    bottom: 0;
+    height: 100dvh;
+    left: 0;
+    position: fixed;
+    right: 0;
+    top: 0;
+    width: 100%;
+    z-index: 60;
+  }
+  /* Bigger close button tap target */
+  .thread-close {
+    font-size: 1.2rem;
+    min-height: 44px;
+    min-width: 44px;
+  }
 }

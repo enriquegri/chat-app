@@ -46,6 +46,12 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const messageCache = useRef(new Map())
   // Hover-prefetch timers: channelId → timeoutId
   const hoverTimers = useRef({})
+  // Scroll state per channel: channelId → { atBottom, scrollTop }
+  const scrollState = useRef(new Map())
+  // True right after a channel switch — triggers instant scroll
+  const isInitialLoad = useRef(false)
+  // Suppresses saving scroll position during programmatic scroll
+  const suppressScrollSave = useRef(false)
 
   useEffect(() => { activeChannelRef.current = activeChannel }, [activeChannel])
   useEffect(() => { activeThreadRef.current = activeThread }, [activeThread])
@@ -175,13 +181,23 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     loadReactions, handleMessageEdited, handleMessageDeleted, handleOnlineUpdate
   )
 
-  // Scroll to bottom button
+  // Scroll listener: show "↓" button + save per-channel scroll position
   useEffect(() => {
     const container = messagesContainerRef.current
     if (!container) return
     const onScroll = () => {
       const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight
       setShowScrollBtn(distFromBottom > 300)
+      // Persist scroll state so we can restore it when coming back to this channel
+      if (!suppressScrollSave.current) {
+        const chId = activeChannelRef.current?.id
+        if (chId) {
+          scrollState.current.set(chId, {
+            atBottom: distFromBottom < 100,
+            scrollTop: container.scrollTop,
+          })
+        }
+      }
     }
     container.addEventListener('scroll', onScroll)
     return () => container.removeEventListener('scroll', onScroll)
@@ -198,6 +214,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
 
   useEffect(() => {
     if (!activeChannel) return
+    isInitialLoad.current = true
     setTypingUsers([])
     setUnread(0)
     setOnlineCount(0)
@@ -222,7 +239,32 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   }, [activeChannel])
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const container = messagesContainerRef.current
+    if (!container || messages.length === 0) return
+
+    if (isInitialLoad.current) {
+      // First render after channel switch: jump instantly (no animation)
+      isInitialLoad.current = false
+      const chId = activeChannelRef.current?.id
+      const state = chId ? scrollState.current.get(chId) : null
+
+      suppressScrollSave.current = true
+      if (state && !state.atBottom) {
+        // User was reading history — restore their exact position
+        container.scrollTop = state.scrollTop
+      } else {
+        // First visit or was at bottom — jump to end
+        container.scrollTop = container.scrollHeight
+      }
+      setTimeout(() => { suppressScrollSave.current = false }, 100)
+      return
+    }
+
+    // Subsequent updates (new WS message, typing…): smooth scroll only if near bottom
+    const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight
+    if (distFromBottom < 150) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
   }, [messages, typingUsers])
 
   const sendMessage = async (e) => {

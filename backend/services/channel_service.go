@@ -60,7 +60,7 @@ func (s *ChannelService) Create(req models.CreateChannelRequest, userID int) (*m
 	s.db.Exec("INSERT IGNORE INTO channel_members (channel_id, user_id) VALUES (?, ?)", id, userID)
 
 	var ch models.Channel
-	s.db.QueryRow("SELECT id, name, description, created_by, created_at FROM channels WHERE id = ?", id).
+	s.db.QueryRow("SELECT id, name, description, created_by, created_at, is_private FROM channels WHERE id = ?", id).
 		Scan(&ch.ID, &ch.Name, &ch.Description, &ch.CreatedBy, &ch.CreatedAt, &ch.IsPrivate)
 
 	return &ch, nil
@@ -69,7 +69,7 @@ func (s *ChannelService) Create(req models.CreateChannelRequest, userID int) (*m
 func (s *ChannelService) GetOrCreateDM(user1ID, user2ID int) (*models.Channel, error) {
 	var ch models.Channel
 	err := s.db.QueryRow(`
-		SELECT id, name, description, created_by, created_at FROM channels
+		SELECT id, name, description, created_by, created_at, is_private FROM channels
 		WHERE is_dm = TRUE AND (
 			(dm_user1_id = ? AND dm_user2_id = ?) OR
 			(dm_user1_id = ? AND dm_user2_id = ?)
@@ -100,7 +100,7 @@ func (s *ChannelService) GetOrCreateDM(user1ID, user2ID int) (*models.Channel, e
 	s.db.Exec("INSERT IGNORE INTO channel_members (channel_id, user_id) VALUES (?,?),(?,?)",
 		id, user1ID, id, user2ID)
 
-	s.db.QueryRow("SELECT id, name, description, created_by, created_at FROM channels WHERE id = ?", id).
+	s.db.QueryRow("SELECT id, name, description, created_by, created_at, is_private FROM channels WHERE id = ?", id).
 		Scan(&ch.ID, &ch.Name, &ch.Description, &ch.CreatedBy, &ch.CreatedAt, &ch.IsPrivate)
 	return &ch, nil
 }

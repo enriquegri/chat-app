@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" font-family="system-ui, -apple-system, sans-serif">
+  <!-- Background -->
+  <rect width="1200" height="720" fill="#1a1a2e"/>
+
+  <!-- Sidebar (dimmed) -->
+  <rect x="0" y="0" width="240" height="720" fill="#12122a" opacity="0.6"/>
+  <text x="20" y="34" fill="#ffffff" font-size="16" font-weight="700" opacity="0.5">ChatApp</text>
+  <text x="20" y="82" fill="#8888aa" font-size="11" font-weight="600" letter-spacing="1" opacity="0.5">CANALES</text>
+  <rect x="0" y="90" width="240" height="36" fill="#5b5ef4" opacity="0.3"/>
+  <text x="20" y="113" fill="#ffffff" font-size="14" opacity="0.5"># general</text>
+
+  <!-- Main area header -->
+  <rect x="240" y="0" width="960" height="56" fill="#151528"/>
+  <text x="264" y="34" fill="#ffffff" font-size="16" font-weight="700"># general</text>
+  <text x="264" y="34" fill="#ffffff" font-size="16" font-weight="700"># general</text>
+
+  <!-- Voice call panel -->
+  <rect x="240" y="56" width="960" height="300" fill="#12122a"/>
+
+  <!-- Panel title -->
+  <text x="560" y="95" fill="#8888aa" font-size="13" text-anchor="middle">LLAMADA EN CURSO · 12:34</text>
+
+  <!-- Participant cards -->
+  <!-- Card 1 - Speaking -->
+  <rect x="290" y="108" width="180" height="200" fill="#1e1e3a" rx="16"/>
+  <rect x="290" y="108" width="180" height="200" fill="none" stroke="#5b5ef4" stroke-width="3" rx="16"/>
+  <!-- Glow effect for speaking -->
+  <rect x="286" y="104" width="188" height="208" fill="none" stroke="#5b5ef4" stroke-width="1" rx="18" opacity="0.4"/>
+  <rect x="282" y="100" width="196" height="216" fill="none" stroke="#5b5ef4" stroke-width="1" rx="20" opacity="0.2"/>
+  <circle cx="380" cy="190" r="48" fill="#5b5ef4"/>
+  <text x="362" y="202" fill="#ffffff" font-size="36" font-weight="700">A</text>
+  <text x="380" y="270" fill="#ffffff" font-size="14" font-weight="600" text-anchor="middle">Ana García</text>
+  <text x="380" y="290" fill="#5b5ef4" font-size="12" text-anchor="middle">🎤 hablando</text>
+
+  <!-- Card 2 -->
+  <rect x="490" y="108" width="180" height="200" fill="#1e1e3a" rx="16"/>
+  <circle cx="580" cy="190" r="48" fill="#f59e0b"/>
+  <text x="562" y="202" fill="#ffffff" font-size="36" font-weight="700">C</text>
+  <text x="580" y="270" fill="#ffffff" font-size="14" font-weight="600" text-anchor="middle">Carlos M.</text>
+  <text x="580" y="290" fill="#555577" font-size="12" text-anchor="middle">🔇 silenciado</text>
+
+  <!-- Card 3 -->
+  <rect x="690" y="108" width="180" height="200" fill="#1e1e3a" rx="16"/>
+  <circle cx="780" cy="190" r="48" fill="#22c55e"/>
+  <text x="762" y="202" fill="#ffffff" font-size="36" font-weight="700">L</text>
+  <text x="780" y="270" fill="#ffffff" font-size="14" font-weight="600" text-anchor="middle">Laura P.</text>
+  <text x="780" y="290" fill="#555577" font-size="12" text-anchor="middle">🎤 escuchando</text>
+
+  <!-- Card 4 -->
+  <rect x="890" y="108" width="180" height="200" fill="#1e1e3a" rx="16"/>
+  <circle cx="980" cy="190" r="48" fill="#ec4899"/>
+  <text x="964" y="202" fill="#ffffff" font-size="36" font-weight="700">M</text>
+  <text x="980" y="270" fill="#ffffff" font-size="14" font-weight="600" text-anchor="middle">Miguel A.</text>
+  <text x="980" y="290" fill="#555577" font-size="12" text-anchor="middle">🎤 escuchando</text>
+
+  <!-- Controls -->
+  <rect x="430" y="326" width="340" height="56" fill="#0e0e22" rx="28"/>
+
+  <!-- Mute button -->
+  <circle cx="510" cy="354" r="22" fill="#252545"/>
+  <text x="499" y="361" fill="#ffffff" font-size="18">🎤</text>
+
+  <!-- Hang up button -->
+  <circle cx="600" cy="354" r="24" fill="#ef4444"/>
+  <text x="589" y="362" fill="#ffffff" font-size="18">📞</text>
+
+  <!-- Speaker button -->
+  <circle cx="690" cy="354" r="22" fill="#252545"/>
+  <text x="679" y="361" fill="#ffffff" font-size="18">🔊</text>
+
+  <!-- Divider -->
+  <line x1="240" y1="395" x2="1200" y2="395" stroke="#252545" stroke-width="1"/>
+
+  <!-- Chat below (dimmed) -->
+  <rect x="240" y="395" width="960" height="260" fill="#1a1a2e"/>
+  <text x="264" y="430" fill="#555577" font-size="12" font-style="italic">— chat visible mientras estás en llamada —</text>
+
+  <circle cx="272" cy="464" r="16" fill="#5b5ef4" opacity="0.6"/>
+  <text x="300" y="454" fill="#888899" font-size="13" font-weight="600">Ana García</text>
+  <text x="300" y="474" fill="#666688" font-size="14">¿Me escucháis bien?</text>
+
+  <circle cx="272" cy="516" r="16" fill="#f59e0b" opacity="0.6"/>
+  <text x="300" y="506" fill="#888899" font-size="13" font-weight="600">Carlos M.</text>
+  <text x="300" y="526" fill="#666688" font-size="14">Sí, perfectamente 👍</text>
+
+  <!-- Input -->
+  <rect x="240" y="655" width="960" height="65" fill="#151528"/>
+  <rect x="260" y="665" width="900" height="44" fill="#252545" rx="10"/>
+  <text x="280" y="692" fill="#333355" font-size="14">Escribe un mensaje...</text>
+</svg>

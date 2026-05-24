@@ -353,7 +353,6 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
       const fresh = (data.messages || []).map(m => ({ ...m, reactions: m.reactions ?? [] }))
       hasMoreRef.current = data.has_more
       oldestMsgIdRef.current = fresh[0]?.id ?? null
-      pendingScrollRestore.current = true
       setMessages(prev => {
         const temps = prev.filter(m => m._temp)
         const merged = [...fresh, ...temps]

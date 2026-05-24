@@ -8,6 +8,19 @@ import Thread from '../components/Thread'
 
 const TYPING_TIMEOUT = 2000
 
+// ── localStorage persistence ──────────────────────────────────────────────────
+const LS_MSG_KEY    = 'chatapp_msg_v1'
+const LS_SCROLL_KEY = 'chatapp_scroll_v1'
+const LS_ACTIVE_KEY = 'chatapp_active_ch'
+const MAX_MSG_PER_CH = 120   // cap per channel to stay well under the 5 MB quota
+
+function lsGet(key) {
+  try { return JSON.parse(localStorage.getItem(key)) } catch { return null }
+}
+function lsSet(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)) } catch {} // ignore quota errors
+}
+
 export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const [channelList, setChannelList] = useState([])
   const [activeChannel, setActiveChannel] = useState(null)
@@ -42,12 +55,24 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const typingTimers = useRef({})
   const fileInputRef = useRef(null)
   const activeChannelRef = useRef(null)
-  // Cache: channelId → Message[] (keeps reactions already loaded)
-  const messageCache = useRef(new Map())
+  // Cache: channelId (string) → Message[] — pre-seeded from localStorage
+  const messageCache = useRef((() => {
+    const map = new Map()
+    const stored = lsGet(LS_MSG_KEY) || {}
+    Object.entries(stored).forEach(([k, v]) => map.set(k, v))
+    return map
+  })())
   // Hover-prefetch timers: channelId → timeoutId
   const hoverTimers = useRef({})
-  // Scroll state per channel: channelId → { atBottom, scrollTop }
-  const scrollState = useRef(new Map())
+  // Scroll state per channel: channelId (string) → { atBottom, scrollTop }
+  const scrollState = useRef((() => {
+    const map = new Map()
+    const stored = lsGet(LS_SCROLL_KEY) || {}
+    Object.entries(stored).forEach(([k, v]) => map.set(k, v))
+    return map
+  })())
+  // Debounce timer for persisting scroll state (fires many times per second)
+  const scrollPersistTimer = useRef(null)
   // True right after a channel switch — triggers instant scroll
   const isInitialLoad = useRef(false)
   // Suppresses saving scroll position during programmatic scroll
@@ -85,12 +110,33 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     document.title = unread > 0 ? `(${unread}) ChatApp` : 'ChatApp'
   }, [unread])
 
+  // Flush the entire message cache to localStorage (trimmed to MAX_MSG_PER_CH)
+  const persistCache = useCallback(() => {
+    const obj = {}
+    messageCache.current.forEach((msgs, chId) => {
+      obj[chId] = msgs.filter(m => !m._temp).slice(-MAX_MSG_PER_CH)
+    })
+    lsSet(LS_MSG_KEY, obj)
+  }, [])
+
+  // Debounced flush of scroll state (scroll events fire hundreds of times/second)
+  const persistScroll = useCallback(() => {
+    clearTimeout(scrollPersistTimer.current)
+    scrollPersistTimer.current = setTimeout(() => {
+      const obj = {}
+      scrollState.current.forEach((v, k) => { obj[k] = v })
+      lsSet(LS_SCROLL_KEY, obj)
+    }, 400)
+  }, [])
+
   // updateCache must be defined BEFORE callbacks that use it
   const updateCache = useCallback((updater) => {
     const chId = activeChannelRef.current?.id
     if (!chId) return
-    messageCache.current.set(chId, updater(messageCache.current.get(chId) || []))
-  }, [])
+    const key = String(chId)
+    messageCache.current.set(key, updater(messageCache.current.get(key) || []))
+    persistCache()
+  }, [persistCache])
 
   const handleNewMessage = useCallback((msg) => {
     if (msg.reply_to_id) {
@@ -194,10 +240,11 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
       if (!suppressScrollSave.current) {
         const chId = activeChannelRef.current?.id
         if (chId) {
-          scrollState.current.set(chId, {
+          scrollState.current.set(String(chId), {
             atBottom: distFromBottom < 100,
             scrollTop: container.scrollTop,
           })
+          persistScroll()
         }
       }
     }
@@ -208,7 +255,11 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   useEffect(() => {
     channelsApi.list().then(({ data }) => {
       setChannelList(data)
-      if (data.length > 0) setActiveChannel(data[0])
+      if (data.length === 0) return
+      // Restore the last active channel (or fall back to the first one)
+      const lastId = lsGet(LS_ACTIVE_KEY)
+      const restored = lastId ? data.find(c => String(c.id) === String(lastId)) : null
+      setActiveChannel(restored ?? data[0])
     })
     dmApi.list().then(({ data }) => setDmList(data))
     usersApi.list().then(({ data }) => setUserList(data))
@@ -222,8 +273,9 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     setOnlineCount(0)
     setActiveThread(null)
 
-    // Show cached messages immediately (zero-latency switch)
-    const cached = messageCache.current.get(activeChannel.id)
+    // Show cached messages immediately (zero-latency switch — may be from localStorage)
+    const chKey = String(activeChannel.id)
+    const cached = messageCache.current.get(chKey)
     setMessages(cached ?? [])
 
     // Background refresh — always fetch fresh from server
@@ -233,7 +285,8 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
         const temps = prev.filter(m => m._temp)
         const fresh = data.map(m => ({ ...m, reactions: [] }))
         const merged = [...fresh, ...temps]
-        messageCache.current.set(activeChannel.id, fresh) // cache without temps
+        messageCache.current.set(chKey, fresh) // cache without temps
+        persistCache()
         return merged
       })
       data.forEach(m => loadReactions(m.id))
@@ -248,7 +301,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
       // First render after channel switch: jump instantly (no animation)
       isInitialLoad.current = false
       const chId = activeChannelRef.current?.id
-      const state = chId ? scrollState.current.get(chId) : null
+      const state = chId ? scrollState.current.get(String(chId)) : null
 
       suppressScrollSave.current = true
       if (state && !state.atBottom) {
@@ -358,6 +411,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const openDM = async (u) => {
     setShowUserPicker(false)
     const { data: ch } = await dmApi.open(u.id)
+    lsSet(LS_ACTIVE_KEY, ch.id)
     setActiveDMUser(u)
     setActiveChannel(ch)
     setDmList(prev => prev.find(d => d.channel_id === ch.id)
@@ -368,22 +422,25 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
 
   // Prefetch messages on hover (200ms delay to avoid spurious loads)
   const prefetchChannel = useCallback((channelId) => {
-    if (messageCache.current.has(channelId)) return // already cached
-    if (hoverTimers.current[channelId]) return       // already scheduled
-    hoverTimers.current[channelId] = setTimeout(async () => {
-      delete hoverTimers.current[channelId]
-      if (messageCache.current.has(channelId)) return
+    const key = String(channelId)
+    if (messageCache.current.has(key)) return // already cached (memory or localStorage)
+    if (hoverTimers.current[key]) return       // already scheduled
+    hoverTimers.current[key] = setTimeout(async () => {
+      delete hoverTimers.current[key]
+      if (messageCache.current.has(key)) return
       try {
         const { data } = await channelsApi.messages(channelId)
-        messageCache.current.set(channelId, data.map(m => ({ ...m, reactions: [] })))
+        messageCache.current.set(key, data.map(m => ({ ...m, reactions: [] })))
+        persistCache()
       } catch {}
     }, 200)
-  }, [])
+  }, [persistCache])
 
   const cancelPrefetch = useCallback((channelId) => {
-    if (hoverTimers.current[channelId]) {
-      clearTimeout(hoverTimers.current[channelId])
-      delete hoverTimers.current[channelId]
+    const key = String(channelId)
+    if (hoverTimers.current[key]) {
+      clearTimeout(hoverTimers.current[key])
+      delete hoverTimers.current[key]
     }
   }, [])
 
@@ -395,6 +452,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
       window.history.pushState({ level: 'channel' }, '')
       channelHistoryPushed.current = true
     }
+    if (ch) lsSet(LS_ACTIVE_KEY, ch.id)
     setActiveChannel(ch)
   }
 
@@ -403,6 +461,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
       window.history.pushState({ level: 'channel' }, '')
       channelHistoryPushed.current = true
     }
+    lsSet(LS_ACTIVE_KEY, conv.channel_id)
     setActiveDMUser({ id: conv.user_id, username: conv.username, avatar_color: conv.avatar_color })
     setActiveChannel({ id: conv.channel_id, name: conv.username })
   }

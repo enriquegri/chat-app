@@ -352,11 +352,29 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     const applyFreshMessages = (data, key) => {
       const fresh = (data.messages || []).map(m => ({ ...m, reactions: m.reactions ?? [] }))
       hasMoreRef.current = data.has_more
-      oldestMsgIdRef.current = fresh[0]?.id ?? null
       setMessages(prev => {
         const temps = prev.filter(m => m._temp)
-        const merged = [...fresh, ...temps]
-        messageCache.current.set(key, fresh)
+        const nonTemps = prev.filter(m => !m._temp)
+
+        // Preservar mensajes más antiguos cargados por paginación.
+        // fresh[0] es el más antiguo del lote fresco (el backend devuelve ASC).
+        const oldestFreshTs = fresh[0]?.created_at ?? null
+        const oldestFreshId = fresh[0]?.id ?? null
+        const olderHistory = oldestFreshTs
+          ? nonTemps.filter(m =>
+              new Date(m.created_at) < new Date(oldestFreshTs) ||
+              (m.created_at === oldestFreshTs && m.id < oldestFreshId))
+          : []
+
+        // Solo actualizar oldestMsgIdRef si no hay historial paginado previo
+        if (olderHistory.length > 0) {
+          oldestMsgIdRef.current = olderHistory[0].id
+        } else {
+          oldestMsgIdRef.current = fresh[0]?.id ?? null
+        }
+
+        const merged = [...olderHistory, ...fresh, ...temps]
+        messageCache.current.set(key, merged.slice(-MAX_MSG_PER_CH))
         persistCache()
         return merged
       })

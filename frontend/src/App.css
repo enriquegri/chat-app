@@ -2013,3 +2013,179 @@ body {
     min-width: 44px;
   }
 }
+
+/* ── Voice Call ─────────────────────────────────────────────────── */
+.voice-call-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  transition: background 0.15s, color 0.15s;
+}
+.voice-call-toggle:hover { background: var(--bg-hover); color: var(--text-primary); }
+.voice-call-toggle.active { color: #4caf50; }
+
+/* Barra compacta — canal con llamada activa */
+.voice-call-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 1rem;
+  background: rgba(76, 175, 80, 0.1);
+  border-bottom: 1px solid rgba(76, 175, 80, 0.25);
+  flex-shrink: 0;
+}
+.voice-call-bar-icon { font-size: 1rem; }
+.voice-call-bar-avatars { display: flex; gap: -4px; }
+.voice-call-bar-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #fff;
+  border: 2px solid var(--bg-main);
+  margin-left: -4px;
+}
+.voice-call-bar-avatar:first-child { margin-left: 0; }
+.voice-call-bar-extra { font-size: 0.75rem; color: var(--text-secondary); margin-left: 4px; }
+.voice-call-bar-label { font-size: 0.8rem; color: var(--text-secondary); flex: 1; }
+.voice-call-bar-btn {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.65rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: opacity 0.15s;
+}
+.voice-call-bar-btn.join { background: #4caf50; color: #fff; }
+.voice-call-bar-btn.leave { background: #e53935; color: #fff; }
+.voice-call-bar-btn:hover { opacity: 0.85; }
+
+/* Panel de llamada */
+.voice-call-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-default);
+  flex-shrink: 0;
+}
+.voice-call-participants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.voice-call-avatar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+.voice-call-avatar-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  border: 2px solid transparent;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.voice-call-avatar.speaking .voice-call-avatar-circle {
+  border-color: #4caf50;
+  box-shadow: 0 0 8px rgba(76, 175, 80, 0.5);
+}
+.voice-call-avatar-name {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.voice-call-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+.voice-call-btn-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.voice-call-btn-ctrl:hover { background: var(--bg-hover); }
+.voice-call-btn-ctrl.leave { border-color: rgba(229,57,53,0.4); color: #e53935; }
+.voice-call-btn-ctrl.leave:hover { background: rgba(229,57,53,0.12); }
+
+/* Mobile: panel full-screen */
+@media (max-width: 767px) {
+  .voice-call-panel--mobile {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: var(--bg-main);
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+  }
+  .voice-call-panel--mobile .voice-call-participants {
+    justify-content: center;
+  }
+  .voice-call-panel--mobile .voice-call-controls {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .voice-call-panel--mobile .voice-call-avatar-circle {
+    width: 64px;
+    height: 64px;
+    font-size: 1.6rem;
+  }
+}
+
+/* Mini-bar visible en móvil cuando el chat está activo durante llamada */
+.voice-mini-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 201;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(76, 175, 80, 0.15);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(76, 175, 80, 0.3);
+}
+.voice-mini-bar-icon { font-size: 1rem; }
+.voice-mini-bar-count { font-size: 0.8rem; color: var(--text-secondary); flex: 1; }
+.voice-mini-bar-btn {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.6rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+.voice-mini-bar-btn.leave { background: #e53935; color: #fff; }

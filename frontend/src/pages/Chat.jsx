@@ -1,10 +1,13 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import { channels as channelsApi, reactions as reactionsApi, uploads, dm as dmApi, users as usersApi } from '../services/api'
 import { useWebSocket } from '../hooks/useWebSocket'
+import { useVoiceCall } from '../hooks/useVoiceCall'
 import { usePushNotifications } from '../hooks/usePushNotifications'
 import Message from '../components/Message'
 import GlobalSearch from '../components/GlobalSearch'
 import Thread from '../components/Thread'
+import VoiceCallBar from '../components/VoiceCallBar'
+import VoiceCall from '../components/VoiceCall'
 
 const TYPING_TIMEOUT = 2000
 
@@ -90,6 +93,9 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
   const [loadingMore, setLoadingMore] = useState(false)
   // Online count cache: channelId → count (persisted to localStorage)
   const onlineCacheRef = useRef(lsGet(LS_ONLINE_KEY) || {})
+  // Voice call
+  const [callParticipants, setCallParticipants] = useState([])
+  const isMobile = window.innerWidth < 768
 
   useEffect(() => { activeThreadRef.current = activeThread }, [activeThread])
 
@@ -239,10 +245,16 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     setOnlineCount(count)
   }, [])
 
-  const { send, sendTyping } = useWebSocket(
+  const handleCallState = useCallback((participants) => {
+    setCallParticipants(participants || [])
+  }, [])
+
+  const { send, sendTyping, sendCallSignal } = useWebSocket(
     activeChannel?.id, handleNewMessage, handleTyping,
-    loadReactions, handleMessageEdited, handleMessageDeleted, handleOnlineUpdate
+    loadReactions, handleMessageEdited, handleMessageDeleted, handleOnlineUpdate, handleCallState
   )
+
+  const { inCall, isMuted, activeSpeakers, lkParticipants, joinCall, leaveCall, toggleMute } = useVoiceCall(sendCallSignal, user)
 
   // Cargar mensajes más antiguos (scroll hacia arriba — paginación)
   // Debe estar definido ANTES del scroll listener que lo referencia en deps
@@ -333,6 +345,7 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
     setUnread(0)
     setOnlineCount(0)
     setActiveThread(null)
+    setCallParticipants([])
 
     // Show cached messages immediately (zero-latency switch — may be from localStorage)
     const chKey = String(activeChannel.id)
@@ -790,6 +803,11 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
                 )}
               </div>
               <button
+                className={`voice-call-toggle${inCall ? ' active' : ''}`}
+                onClick={() => inCall ? leaveCall() : joinCall(activeChannel.id, user.avatar_color)}
+                title={inCall ? 'Colgar' : 'Llamada de voz'}
+              >📞</button>
+              <button
                 className="search-toggle"
                 onClick={() => searchOpen ? closeSearch() : setSearchOpen(true)}
                 title="Search messages"
@@ -827,6 +845,24 @@ export default function Chat({ user, onLogout, onOpenAdmin, onOpenProfile }) {
                   </div>
                 )}
               </div>
+            )}
+
+            <VoiceCallBar
+              participants={callParticipants}
+              inCall={inCall}
+              onJoin={() => joinCall(activeChannel.id, user.avatar_color)}
+              onLeave={leaveCall}
+            />
+
+            {inCall && (
+              <VoiceCall
+                participants={lkParticipants}
+                isMuted={isMuted}
+                activeSpeakers={activeSpeakers}
+                onToggleMute={toggleMute}
+                onLeave={leaveCall}
+                isMobile={isMobile}
+              />
             )}
 
             <div className="messages-container" ref={messagesContainerRef}>

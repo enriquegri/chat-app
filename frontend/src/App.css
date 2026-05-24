@@ -1094,8 +1094,12 @@ body {
     margin: .5rem .75rem .75rem;
   }
 
-  /* On touch devices hover doesn't fire — always show message actions */
-  .msg-actions { display: flex; }
+  /* Mobile toolbar: hidden by default, revealed on tap (no hover on touch) */
+  .msg-actions { display: none; }
+  /* Show when the message row is tapped */
+  .msg-row.tapped .msg-actions { display: flex; }
+  /* Keep visible while the emoji picker or menu is open */
+  .msg-actions.picker-open { display: flex; }
 
   /* Tap targets: buttons at least 44px */
   .send-btn,
@@ -1976,16 +1980,16 @@ body {
 }
 .thread-count-btn:hover { background: var(--accent-subtle); }
 
-/* Mobile: thread panel becomes a full-screen overlay (slides over the chat) */
+/* Mobile: thread panel becomes a full-screen overlay (slides over the chat).
+   Use inset: 0 + height/width: auto so the four edges define the box —
+   avoids the conflict between an explicit height (100vh/dvh) and bottom: 0
+   that caused the panel to overflow the visible viewport on Android. */
 @media (max-width: 767px) {
   .thread-panel {
-    bottom: 0;
-    height: 100dvh;
-    left: 0;
+    height: auto;
+    inset: 0;
     position: fixed;
-    right: 0;
-    top: 0;
-    width: 100%;
+    width: auto;
     z-index: 60;
   }
   /* Bigger close button tap target */

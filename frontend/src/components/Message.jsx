@@ -62,10 +62,12 @@ export default function Message({ message, currentUserId, currentUserRole, curre
   const [showMenu, setShowMenu] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editText, setEditText] = useState(message.content)
+  const [tapped, setTapped] = useState(false)   // mobile tap-to-reveal toolbar
   const pickerRef = useRef(null)
   const menuRef = useRef(null)
   const triggerRef = useRef(null)
   const editInputRef = useRef(null)
+  const rowRef = useRef(null)
 
   const isOwn = message.user_id === currentUserId
   const isAdmin = currentUserRole === 'admin'
@@ -95,6 +97,24 @@ export default function Message({ message, currentUserId, currentUserRole, curre
   useEffect(() => {
     if (editing) editInputRef.current?.focus()
   }, [editing])
+
+  // Mobile tap-to-reveal: dismiss toolbar when the user taps outside this row
+  useEffect(() => {
+    if (!tapped) return
+    const dismiss = (e) => {
+      if (!rowRef.current?.contains(e.target)) setTapped(false)
+    }
+    // Defer so this handler doesn't immediately fire on the tap that enabled it
+    const id = setTimeout(() => document.addEventListener('click', dismiss), 0)
+    return () => { clearTimeout(id); document.removeEventListener('click', dismiss) }
+  }, [tapped])
+
+  const handleRowClick = (e) => {
+    // Don't intercept taps on interactive elements inside the row
+    if (e.target.closest('button, a, input, textarea')) return
+    if (editing) return
+    setTapped(t => !t)
+  }
 
   const grouped = (message.reactions || []).reduce((acc, r) => {
     if (!acc[r.emoji]) acc[r.emoji] = { count: 0, mine: false }
@@ -152,7 +172,11 @@ export default function Message({ message, currentUserId, currentUserRole, curre
   const avatarColor = message.avatar_color || '#5b5ef4'
 
   return (
-    <div className={`msg-row ${isCompact ? 'compact' : ''}${isMentioned ? ' mentioned' : ''}${isSending ? ' sending' : ''}`}>
+    <div
+      ref={rowRef}
+      className={`msg-row ${isCompact ? 'compact' : ''}${isMentioned ? ' mentioned' : ''}${isSending ? ' sending' : ''}${tapped ? ' tapped' : ''}`}
+      onClick={handleRowClick}
+    >
       <div className="msg-avatar-col">
         <div className="msg-avatar" style={{ background: avatarColor }}>
           {message.username[0].toUpperCase()}

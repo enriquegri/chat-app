@@ -39,11 +39,26 @@ services:
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      LIVEKIT_URL: ${LIVEKIT_URL:-wss://api.enriquegr.dev/livekit}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
     volumes:
       - uploads_data:/app/uploads
     depends_on:
       mariadb:
         condition: service_healthy
+
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: chat-livekit
+    restart: unless-stopped
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "50000-50200:50000-50200/udp"
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml
+    command: --config /etc/livekit.yaml
 
   proxy:
     image: nginx:alpine
@@ -57,6 +72,7 @@ services:
       - ./ssl:/etc/nginx/ssl:ro
     depends_on:
       - backend
+      - livekit
 
 volumes:
   mariadb_data:

@@ -26,6 +26,9 @@ vendor/
 .env
 .env.local
 
+# LiveKit config (contains API secret)
+livekit.yaml
+
 # Local Claude context (never commit)
 CLAUDE.md
 

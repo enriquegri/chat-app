@@ -42,6 +42,7 @@ func main() {
 	adminHandler := handlers.NewAdminHandler(adminSvc)
 	profileHandler := handlers.NewProfileHandler(authSvc)
 	pushHandler := handlers.NewPushHandler(pushSvc)
+	voiceHandler := handlers.NewVoiceHandler(channelSvc, cfg.LiveKitURL, cfg.LiveKitAPIKey, cfg.LiveKitSecret)
 	wsHandler := handlers.NewWSHandler(hub, authSvc, channelSvc, pushSvc, cfg.AllowedOrigins)
 	authMiddleware := middleware.Auth(authSvc)
 	adminMiddleware := middleware.Admin
@@ -104,6 +105,7 @@ func main() {
 	api.HandleFunc("/push/vapid-key", pushHandler.VAPIDPublicKey).Methods("GET")
 	api.HandleFunc("/push/subscribe", pushHandler.Subscribe).Methods("POST")
 	api.HandleFunc("/push/subscribe", pushHandler.Unsubscribe).Methods("DELETE")
+	api.HandleFunc("/channels/{id}/voice/token", voiceHandler.Token).Methods("POST")
 	api.HandleFunc("/messages/{messageId}/reactions/{emoji}", reactionHandler.Toggle).Methods("POST")
 	api.HandleFunc("/messages/{messageId}/reactions", reactionHandler.List).Methods("GET")
 	api.HandleFunc("/messages/{messageId}/thread", channelHandler.GetThread).Methods("GET")

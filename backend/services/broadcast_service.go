@@ -21,11 +21,13 @@ type Client struct {
 
 // Hub gestiona todas las conexiones activas y el broadcast de mensajes
 type Hub struct {
-	clients    map[*Client]bool
-	broadcast  chan []byte
-	register   chan *Client
-	unregister chan *Client
-	mu         sync.RWMutex
+	clients     map[*Client]bool
+	broadcast   chan []byte
+	register    chan *Client
+	unregister  chan *Client
+	mu          sync.RWMutex
+	voiceCalls  map[int][]models.VoiceParticipant
+	voiceMu     sync.RWMutex
 }
 
 func NewHub() *Hub {
@@ -34,6 +36,7 @@ func NewHub() *Hub {
 		broadcast:  make(chan []byte, 256),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
+		voiceCalls: make(map[int][]models.VoiceParticipant),
 	}
 }
 
@@ -46,6 +49,7 @@ func (h *Hub) Run() {
 			h.mu.Unlock()
 			log.Printf("Client %s connected (channel %d)", client.Username, client.ChannelID)
 			h.sendOnlineUpdate(client.ChannelID)
+			h.sendCallStateToClient(client)
 
 		case client := <-h.unregister:
 			h.mu.Lock()
@@ -55,6 +59,7 @@ func (h *Hub) Run() {
 			}
 			h.mu.Unlock()
 			log.Printf("Client %s disconnected", client.Username)
+			h.removeFromVoiceCall(client.ChannelID, client.ID)
 			h.sendOnlineUpdate(client.ChannelID)
 
 		case message := <-h.broadcast:
@@ -140,6 +145,76 @@ func (h *Hub) OnlineUsers(channelID int) []string {
 	return users
 }
 
+func (h *Hub) sendCallStateToClient(client *Client) {
+	h.voiceMu.RLock()
+	participants := h.voiceCalls[client.ChannelID]
+	if len(participants) == 0 {
+		h.voiceMu.RUnlock()
+		return
+	}
+	snapshot := make([]models.VoiceParticipant, len(participants))
+	copy(snapshot, participants)
+	h.voiceMu.RUnlock()
+
+	out := models.WSMessage{
+		Type:             "call_state",
+		ChannelID:        client.ChannelID,
+		CallParticipants: snapshot,
+	}
+	data, _ := json.Marshal(out)
+	select {
+	case client.Send <- data:
+	default:
+	}
+}
+
+func (h *Hub) voiceJoin(channelID int, p models.VoiceParticipant) {
+	h.voiceMu.Lock()
+	participants := h.voiceCalls[channelID]
+	for _, existing := range participants {
+		if existing.UserID == p.UserID {
+			h.voiceMu.Unlock()
+			return
+		}
+	}
+	h.voiceCalls[channelID] = append(participants, p)
+	h.voiceMu.Unlock()
+	h.broadcastCallState(channelID)
+}
+
+func (h *Hub) removeFromVoiceCall(channelID, userID int) {
+	h.voiceMu.Lock()
+	participants := h.voiceCalls[channelID]
+	filtered := participants[:0]
+	for _, p := range participants {
+		if p.UserID != userID {
+			filtered = append(filtered, p)
+		}
+	}
+	if len(filtered) == 0 {
+		delete(h.voiceCalls, channelID)
+	} else {
+		h.voiceCalls[channelID] = filtered
+	}
+	h.voiceMu.Unlock()
+	h.broadcastCallState(channelID)
+}
+
+func (h *Hub) broadcastCallState(channelID int) {
+	h.voiceMu.RLock()
+	participants := make([]models.VoiceParticipant, len(h.voiceCalls[channelID]))
+	copy(participants, h.voiceCalls[channelID])
+	h.voiceMu.RUnlock()
+
+	out := models.WSMessage{
+		Type:             "call_state",
+		ChannelID:        channelID,
+		CallParticipants: participants,
+	}
+	data, _ := json.Marshal(out)
+	h.Broadcast(data)
+}
+
 // WritePump envía mensajes del canal Send al WebSocket
 func (c *Client) WritePump() {
 	defer c.Conn.Close()
@@ -179,6 +254,16 @@ func (c *Client) ReadPump(hub *Hub, channelSvc *ChannelService, pushSvc *PushSer
 			}
 			data, _ := json.Marshal(out)
 			hub.Broadcast(data)
+
+		case "call_join":
+			hub.voiceJoin(c.ChannelID, models.VoiceParticipant{
+				UserID:      c.ID,
+				Username:    c.Username,
+				AvatarColor: wsMsg.AvatarColor,
+			})
+
+		case "call_leave":
+			hub.removeFromVoiceCall(c.ChannelID, c.ID)
 
 		default: // "message"
 			msg := models.Message{

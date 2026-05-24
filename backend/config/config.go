@@ -20,6 +20,9 @@ type Config struct {
 	EncryptionKey       []byte
 	VAPIDPublicKey      string
 	VAPIDPrivateKey     string
+	LiveKitURL          string
+	LiveKitAPIKey       string
+	LiveKitSecret       string
 }
 
 func Load() *Config {
@@ -36,6 +39,9 @@ func Load() *Config {
 		EncryptionKey:       parseHexKey(getEnv("ENCRYPTION_KEY", "")),
 		VAPIDPublicKey:      getEnv("VAPID_PUBLIC_KEY", ""),
 		VAPIDPrivateKey:     getEnv("VAPID_PRIVATE_KEY", ""),
+		LiveKitURL:          getEnv("LIVEKIT_URL", "wss://api.enriquegr.dev/livekit"),
+		LiveKitAPIKey:       getEnv("LIVEKIT_API_KEY", ""),
+		LiveKitSecret:       getEnv("LIVEKIT_API_SECRET", ""),
 	}
 }
 

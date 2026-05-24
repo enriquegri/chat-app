@@ -1027,12 +1027,10 @@ body {
 .chat-header     { padding-top: max(.75rem,  var(--sat)); }
 .admin-header    { padding-top: max(.875rem, var(--sat)); }
 .profile-header  { padding-top: max(.875rem, var(--sat)); }
-.thread-header   { padding-top: max(.875rem, var(--sat)); }
 .gs-header       { padding-top: max(.75rem,  var(--sat)); }
 
 /* Bottom-edge surfaces (home indicator / gesture bar) */
 .composer        { padding-bottom: max(.75rem, var(--sab)); }
-.thread-composer { margin-bottom:  max(.75rem, var(--sab)); }
 
 /* ─── Mobile (WhatsApp-style navigation) ─── */
 @media (max-width: 767px) {
@@ -1866,7 +1864,7 @@ body {
   display: flex;
   flex-shrink: 0;
   gap: .5rem;
-  padding: .875rem 1rem;
+  padding: max(.875rem, var(--sat)) 1rem .875rem;
 }
 
 .thread-title {
@@ -1937,7 +1935,7 @@ body {
   display: flex;
   flex-shrink: 0;
   gap: .5rem;
-  margin: .75rem;
+  margin: .75rem .75rem max(.75rem, var(--sab));
   padding: .4rem .4rem .4rem .75rem;
   transition: border-color .15s;
 }

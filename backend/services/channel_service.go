@@ -217,21 +217,25 @@ func (s *ChannelService) reactionsByMsgIDs(ids []int) map[int][]models.Reaction 
 }
 
 // GetMessages devuelve hasta `limit` mensajes top-level de un canal en orden ASC.
-// Si beforeID > 0, sólo devuelve mensajes con id < beforeID (paginación hacia atrás).
+// Si beforeID > 0, pagina hacia atrás usando (created_at, id) como cursor compuesto
+// para que el orden por fecha y la paginación sean siempre consistentes.
 func (s *ChannelService) GetMessages(channelID, limit, beforeID int) ([]models.Message, error) {
 	var rows *sql.Rows
 	var err error
 
 	if beforeID > 0 {
+		var beforeTS string
+		s.db.QueryRow("SELECT created_at FROM messages WHERE id = ?", beforeID).Scan(&beforeTS)
 		rows, err = s.db.Query(`
 			SELECT m.id, m.channel_id, m.user_id, u.username, u.avatar_color,
 			       m.content, COALESCE(m.file_url,''), COALESCE(m.file_type,''), m.created_at, m.edited_at,
 			       (SELECT COUNT(*) FROM messages r WHERE r.reply_to_id = m.id) as reply_count
 			FROM messages m FORCE INDEX (idx_channel_reply_created)
 			JOIN users u ON m.user_id = u.id
-			WHERE m.channel_id = ? AND m.reply_to_id IS NULL AND m.id < ?
-			ORDER BY m.created_at DESC
-			LIMIT ?`, channelID, beforeID, limit)
+			WHERE m.channel_id = ? AND m.reply_to_id IS NULL
+			  AND (m.created_at < ? OR (m.created_at = ? AND m.id < ?))
+			ORDER BY m.created_at DESC, m.id DESC
+			LIMIT ?`, channelID, beforeTS, beforeTS, beforeID, limit)
 	} else {
 		rows, err = s.db.Query(`
 			SELECT m.id, m.channel_id, m.user_id, u.username, u.avatar_color,
@@ -240,7 +244,7 @@ func (s *ChannelService) GetMessages(channelID, limit, beforeID int) ([]models.M
 			FROM messages m FORCE INDEX (idx_channel_reply_created)
 			JOIN users u ON m.user_id = u.id
 			WHERE m.channel_id = ? AND m.reply_to_id IS NULL
-			ORDER BY m.created_at DESC
+			ORDER BY m.created_at DESC, m.id DESC
 			LIMIT ?`, channelID, limit)
 	}
 	if err != nil {
